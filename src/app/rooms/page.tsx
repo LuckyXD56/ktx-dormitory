@@ -32,6 +32,7 @@ import {
   invalidateCache,
   isCacheFresh,
   setCached,
+  subscribeDormSync,
 } from "@/lib/cache";
 import { formatCurrency, getInitials, getTodayYYYYMMDD } from "@/lib/utils";
 import type {
@@ -172,6 +173,22 @@ export default function RoomsPage() {
   useEffect(() => {
     loadData(false);
   }, [loadData]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadData(true);
+    });
+  }, [loadData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || buildings.length === 0) return;
+    const param = new URLSearchParams(window.location.search).get("building");
+    if (!param || param === "all") return;
+    const found = buildings.find(
+      (b) => b.id === param || b.code.toLowerCase() === param.toLowerCase()
+    );
+    if (found) setSelectedBuilding(found.id);
+  }, [buildings]);
 
   const membersByRoom = useMemo(() => {
     const map = new Map<string, Member[]>();

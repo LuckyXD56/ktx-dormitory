@@ -27,6 +27,7 @@ import {
   invalidateCache,
   isCacheFresh,
   setCached,
+  subscribeDormSync,
 } from "@/lib/cache";
 import { formatDate, getInitials, getTodayYYYYMMDD } from "@/lib/utils";
 import type {
@@ -143,6 +144,18 @@ export default function MembersPage() {
   useEffect(() => {
     loadData(false);
   }, [loadData]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadData(true);
+    });
+  }, [loadData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearch(q);
+  }, []);
 
   const refreshAfterMutation = async () => {
     invalidateCache("members_page");

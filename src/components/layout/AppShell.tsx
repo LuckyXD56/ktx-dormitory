@@ -62,6 +62,7 @@ import {
   isCacheFresh,
   setCached,
 } from "@/lib/cache";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 import { formatDateTime, getInitials } from "@/lib/utils";
 
 interface AlertSummary {
@@ -84,6 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { t, lang, setLang } = useI18n();
   const { profile, profileError, role, signOut } = useAuth();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [syncState, setSyncState] = useState<"live" | "connecting" | "offline">(
@@ -116,13 +118,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [pathname, router]);
 
-  // Ctrl+K / Cmd+K quick focus on navigation search
+  // Ctrl+K opens Command Palette; "/" focuses sidebar search when not typing
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        setCmdOpen((prev) => !prev);
+      } else if (
+        e.key === "/" &&
+        !(
+          document.activeElement instanceof HTMLInputElement ||
+          document.activeElement instanceof HTMLTextAreaElement ||
+          document.activeElement instanceof HTMLSelectElement
+        )
+      ) {
+        e.preventDefault();
         searchInputRef.current?.focus();
-        searchInputRef.current?.select();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -449,7 +460,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </button>
             ) : (
               <kbd className="pointer-events-none absolute right-2.5 top-2 hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-400 lg:inline-block">
-                Ctrl K
+                /
               </kbd>
             )}
           </div>
@@ -621,6 +632,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCmdOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              aria-label="Quick Search"
+            >
+              <Search className="h-3.5 w-3.5 text-slate-400" />
+              <span className="hidden sm:inline">
+                {lang === "vi" ? "Tìm nhanh" : "ค้นหาด่วน"}
+              </span>
+              <kbd className="hidden lg:inline-block rounded border border-slate-200 bg-white px-1 py-0.2 text-[10px] text-slate-400">
+                Ctrl K
+              </kbd>
+            </button>
+
             <span
               title={
                 syncState === "live"
@@ -846,6 +872,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
       </SidebarInset>
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </SidebarProvider>
   );
 }
