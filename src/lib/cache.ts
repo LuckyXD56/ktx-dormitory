@@ -77,8 +77,16 @@ export function invalidateCache(prefix?: string): void {
 
 export function emitAlertsRefresh(): void {
   invalidateCache("alerts");
+  invalidateCache("command_index");
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("dorm:refresh-alerts"));
+    try {
+      const ch = new BroadcastChannel("dorm_sync_channel");
+      ch.postMessage({ table: "all", ts: Date.now() });
+      ch.close();
+    } catch {
+      // BroadcastChannel unavailable
+    }
   }
 }
 

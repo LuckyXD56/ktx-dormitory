@@ -358,18 +358,26 @@ export default function RoomsPage() {
           (b) => b.code.toUpperCase() === pb.code
         );
         if (!existing) {
-          await supabase.from("buildings").insert({
+          const { error: insErr } = await supabase.from("buildings").insert({
             code: pb.code,
             name: pb.name,
             total_floors: 5,
             gender_policy: pb.gender_policy,
             description: "5 ชั้น",
           });
+          if (insErr) {
+            showToast(insErr.message, "error");
+            return;
+          }
         } else if (existing.total_floors < 5) {
-          await supabase
+          const { error: updErr } = await supabase
             .from("buildings")
             .update({ total_floors: 5 })
             .eq("id", existing.id);
+          if (updErr) {
+            showToast(updErr.message, "error");
+            return;
+          }
         }
       }
 
