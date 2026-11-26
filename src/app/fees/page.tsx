@@ -26,6 +26,7 @@ import {
   invalidateCache,
   isCacheFresh,
   setCached,
+  subscribeDormSync,
 } from "@/lib/cache";
 import {
   formatCurrency,
@@ -122,9 +123,50 @@ export default function FeesPage() {
     }
   }, []);
 
+  const [filtersReady, setFiltersReady] = useState(false);
+
   useEffect(() => {
     loadData(false);
   }, [loadData]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadData(true);
+    });
+  }, [loadData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const q = new URLSearchParams(window.location.search).get("q");
+      if (q) setSearch(q);
+      const saved = window.sessionStorage.getItem("dorm_fees_filters");
+      if (saved) {
+        const parsed = JSON.parse(saved) as {
+          month?: string;
+          status?: string;
+        };
+        if (parsed.month !== undefined) setMonthFilter(parsed.month);
+        if (parsed.status) setStatusFilter(parsed.status);
+      }
+    } catch {
+      // Ignore storage errors
+    } finally {
+      setFiltersReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!filtersReady || typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        "dorm_fees_filters",
+        JSON.stringify({ month: monthFilter, status: statusFilter })
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  }, [filtersReady, monthFilter, statusFilter]);
 
   const refreshFees = async () => {
     invalidateCache("fees_page");

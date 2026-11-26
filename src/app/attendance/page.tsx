@@ -27,6 +27,7 @@ import {
   invalidateCache,
   isCacheFresh,
   setCached,
+  subscribeDormSync,
 } from "@/lib/cache";
 import { formatDateTime } from "@/lib/utils";
 import type {
@@ -110,9 +111,50 @@ export default function AttendancePage() {
     }
   }, []);
 
+  const [filtersReady, setFiltersReady] = useState(false);
+
   useEffect(() => {
     loadData(false);
   }, [loadData]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadData(true);
+    });
+  }, [loadData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const q = new URLSearchParams(window.location.search).get("q");
+      if (q) setSearch(q);
+      const saved = window.sessionStorage.getItem("dorm_att_filters");
+      if (saved) {
+        const parsed = JSON.parse(saved) as {
+          building?: string;
+          type?: string;
+        };
+        if (parsed.building) setBuildingFilter(parsed.building);
+        if (parsed.type) setTypeFilter(parsed.type);
+      }
+    } catch {
+      // Ignore storage errors
+    } finally {
+      setFiltersReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!filtersReady || typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        "dorm_att_filters",
+        JSON.stringify({ building: buildingFilter, type: typeFilter })
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  }, [filtersReady, buildingFilter, typeFilter]);
 
   const latestByMember = useMemo(() => {
     const map = new Map<string, AttendanceLog>();

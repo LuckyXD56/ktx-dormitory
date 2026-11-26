@@ -170,6 +170,8 @@ export default function RoomsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [filtersReady, setFiltersReady] = useState(false);
+
   useEffect(() => {
     loadData(false);
   }, [loadData]);
@@ -179,6 +181,54 @@ export default function RoomsPage() {
       loadData(true);
     });
   }, [loadData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.sessionStorage.getItem("dorm_rooms_filters");
+      if (saved) {
+        const parsed = JSON.parse(saved) as {
+          building?: string;
+          floor?: number | "all";
+          availability?: string;
+          view?: "compact" | "detailed";
+        };
+        if (parsed.building) setSelectedBuilding(parsed.building);
+        if (parsed.floor !== undefined) setSelectedFloor(parsed.floor);
+        if (parsed.availability) setAvailabilityFilter(parsed.availability);
+        if (parsed.view === "compact" || parsed.view === "detailed") {
+          setViewMode(parsed.view);
+        }
+      }
+    } catch {
+      // Ignore storage error
+    } finally {
+      setFiltersReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!filtersReady || typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        "dorm_rooms_filters",
+        JSON.stringify({
+          building: selectedBuilding,
+          floor: selectedFloor,
+          availability: availabilityFilter,
+          view: viewMode,
+        })
+      );
+    } catch {
+      // Ignore storage error
+    }
+  }, [
+    filtersReady,
+    selectedBuilding,
+    selectedFloor,
+    availabilityFilter,
+    viewMode,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined" || buildings.length === 0) return;
