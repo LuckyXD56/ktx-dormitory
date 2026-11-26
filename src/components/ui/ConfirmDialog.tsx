@@ -30,6 +30,7 @@ export function ConfirmDialog({
       onClose={onClose}
       title={title ?? t.common.confirmDeleteTitle}
       maxWidth="sm"
+      role="alertdialog"
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-start gap-3">

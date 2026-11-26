@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useId } from "react";
 import { X } from "lucide-react";
 
 interface ModalProps {
@@ -10,6 +10,7 @@ interface ModalProps {
   subtitle?: string;
   children: React.ReactNode;
   maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl";
+  role?: "dialog" | "alertdialog";
 }
 
 const widthMap = {
@@ -27,7 +28,10 @@ export function Modal({
   subtitle,
   children,
   maxWidth = "lg",
+  role = "dialog",
 }: ModalProps) {
+  const titleId = useId();
+
   useEffect(() => {
     if (!open) return;
     const prevOverflow = document.body.style.overflow;
@@ -51,11 +55,16 @@ export function Modal({
         onClick={onClose}
       />
       <div
+        role={role}
+        aria-modal="true"
+        aria-labelledby={titleId}
         className={`animate-modal-pop relative z-10 w-full ${widthMap[maxWidth]} max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden`}
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 bg-slate-50/70">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+            <h3 id={titleId} className="text-lg font-semibold text-slate-900">
+              {title}
+            </h3>
             {subtitle && (
               <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
             )}

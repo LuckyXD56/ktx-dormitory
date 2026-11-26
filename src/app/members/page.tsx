@@ -23,6 +23,7 @@ import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import {
   emitAlertsRefresh,
+  emitDormSync,
   getCached,
   invalidateCache,
   isCacheFresh,
@@ -151,17 +152,70 @@ export default function MembersPage() {
     });
   }, [loadData]);
 
+  const [filtersReady, setFiltersReady] = useState(false);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const q = new URLSearchParams(window.location.search).get("q");
-    if (q) setSearch(q);
+    try {
+      const q = new URLSearchParams(window.location.search).get("q");
+      if (q) setSearch(q);
+      const saved = window.sessionStorage.getItem("dorm_members_filters");
+      if (saved) {
+        const parsed = JSON.parse(saved) as {
+          building?: string;
+          floor?: string;
+          status?: string;
+          gender?: string;
+          sortKey?: SortKey;
+          sortAsc?: boolean;
+        };
+        if (parsed.building) setBuildingFilter(parsed.building);
+        if (parsed.floor) setFloorFilter(parsed.floor);
+        if (parsed.status) setStatusFilter(parsed.status);
+        if (parsed.gender) setGenderFilter(parsed.gender);
+        if (parsed.sortKey) setSortKey(parsed.sortKey);
+        if (typeof parsed.sortAsc === "boolean") setSortAsc(parsed.sortAsc);
+      }
+    } catch {
+      // Ignore storage error
+    } finally {
+      setFiltersReady(true);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!filtersReady || typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        "dorm_members_filters",
+        JSON.stringify({
+          building: buildingFilter,
+          floor: floorFilter,
+          status: statusFilter,
+          gender: genderFilter,
+          sortKey,
+          sortAsc,
+        })
+      );
+    } catch {
+      // Ignore storage error
+    }
+  }, [
+    filtersReady,
+    buildingFilter,
+    floorFilter,
+    statusFilter,
+    genderFilter,
+    sortKey,
+    sortAsc,
+  ]);
 
   const refreshAfterMutation = async () => {
     invalidateCache("members_page");
     invalidateCache("rooms_page");
     invalidateCache("dashboard_page");
     emitAlertsRefresh();
+    emitDormSync("members");
     await loadData(true);
   };
 
@@ -206,7 +260,11 @@ export default function MembersPage() {
       .sort((a, b) => {
         const av = String(a[sortKey] ?? "");
         const bv = String(b[sortKey] ?? "");
-        return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+        const cmp = av.localeCompare(bv, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+        return sortAsc ? cmp : -cmp;
       });
   }, [
     members,

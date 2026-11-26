@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, Loader2, Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -19,14 +19,39 @@ export function ImageUpload({
   folder,
   label,
 }: ImageUploadProps) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { showToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [value]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showToast(
+        lang === "vi"
+          ? "Vui lòng chọn tệp hình ảnh hợp lệ."
+          : "กรุณาเลือกไฟล์รูปภาพที่ถูกต้อง",
+        "error"
+      );
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast(
+        lang === "vi"
+          ? "Kích thước ảnh tối đa là 5MB."
+          : "ขนาดไฟล์รูปภาพต้องไม่เกิน 5 MB",
+        "error"
+      );
+      return;
+    }
 
     const supabase = createClient();
     if (!supabase) return;
@@ -52,6 +77,7 @@ export function ImageUpload({
         .getPublicUrl(filePath);
 
       if (data?.publicUrl) {
+        setImgError(false);
         onChange(data.publicUrl);
       }
     } finally {
@@ -69,16 +95,19 @@ export function ImageUpload({
       )}
       <div className="flex items-center gap-3">
         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center">
-          {value ? (
+          {value && !imgError ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={value}
                 alt="Preview"
+                loading="lazy"
+                onError={() => setImgError(true)}
                 className="h-full w-full object-cover"
               />
               <button
                 type="button"
+                aria-label="Remove image"
                 onClick={() => onChange("")}
                 className="absolute right-0.5 top-0.5 rounded-full bg-slate-900/70 p-0.5 text-white hover:bg-slate-900"
               >
@@ -96,6 +125,7 @@ export function ImageUpload({
               ref={inputRef}
               type="file"
               accept="image/*"
+              aria-label={label || t.common.uploadImage}
               onChange={handleFileChange}
               className="hidden"
             />
