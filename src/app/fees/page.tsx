@@ -84,6 +84,8 @@ export default function FeesPage() {
 
   // Generate Monthly
   const [generating, setGenerating] = useState(false);
+  const [quickPayId, setQuickPayId] = useState<string | null>(null);
+  const [batchPaying, setBatchPaying] = useState(false);
 
   // Delete
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -375,6 +377,77 @@ export default function FeesPage() {
     }
   };
 
+  const unpaidFiltered = useMemo(
+    () => filteredPayments.filter((p) => p.status !== "paid"),
+    [filteredPayments]
+  );
+
+  const handleQuickPayFull = async (item: Payment) => {
+    const supabase = createClient();
+    if (!supabase || !user) return;
+    setQuickPayId(item.id);
+    try {
+      const { error } = await supabase
+        .from("payments")
+        .update({
+          paid_amount: Number(item.amount),
+          status: "paid" as PaymentStatus,
+          paid_at: new Date().toISOString(),
+          payment_method: "transfer" as PaymentMethod,
+          receipt_number: item.receipt_number || generateReceiptNumber(),
+          recorded_by: user.id,
+        })
+        .eq("id", item.id);
+      if (error) {
+        showToast(error.message, "error");
+        return;
+      }
+      showToast(t.common.successSave, "success");
+      await refreshFees();
+    } finally {
+      setQuickPayId(null);
+    }
+  };
+
+  const handleBatchPayVisible = async () => {
+    if (unpaidFiltered.length === 0) return;
+    const msg =
+      lang === "vi"
+        ? `Xác nhận đánh dấu ĐÃ THANH TOÁN ĐỦ cho ${unpaidFiltered.length} hóa đơn đang lọc?`
+        : `ยืนยันรับชำระครบจำนวนทั้งหมด ${unpaidFiltered.length} บิลที่แสดงอยู่?`;
+    if (!window.confirm(msg)) return;
+    const supabase = createClient();
+    if (!supabase || !user) return;
+    setBatchPaying(true);
+    try {
+      const now = new Date().toISOString();
+      const results = await Promise.all(
+        unpaidFiltered.map((p) =>
+          supabase
+            .from("payments")
+            .update({
+              paid_amount: Number(p.amount),
+              status: "paid" as PaymentStatus,
+              paid_at: now,
+              payment_method: "transfer" as PaymentMethod,
+              receipt_number: p.receipt_number || generateReceiptNumber(),
+              recorded_by: user.id,
+            })
+            .eq("id", p.id)
+        )
+      );
+      const firstErr = results.find((r) => r.error)?.error;
+      if (firstErr) {
+        showToast(firstErr.message, "error");
+        return;
+      }
+      showToast(t.common.successSave, "success");
+      await refreshFees();
+    } finally {
+      setBatchPaying(false);
+    }
+  };
+
   const feeTypeLabel = (ft: FeeType) => {
     switch (ft) {
       case "room_fee":
@@ -412,6 +485,23 @@ export default function FeesPage() {
             <p className="text-sm text-slate-500 mt-0.5">{t.fees.subtitle}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {unpaidFiltered.length > 1 && (
+              <button
+                type="button"
+                disabled={batchPaying}
+                onClick={handleBatchPayVisible}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {batchPaying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                {lang === "vi"
+                  ? `Thu đủ (${unpaidFiltered.length})`
+                  : `รับชำระทั้งหมด (${unpaidFiltered.length})`}
+              </button>
+            )}
             <button
               type="button"
               disabled={generating}
@@ -572,14 +662,34 @@ export default function FeesPage() {
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-1">
                           {p.status !== "paid" && (
-                            <button
-                              type="button"
-                              onClick={() => openPayModal(p)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                            >
-                              <CreditCard className="h-3.5 w-3.5" />
-                              {t.fees.recordPayment}
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                disabled={quickPayId === p.id}
+                                onClick={() => handleQuickPayFull(p)}
+                                title={
+                                  lang === "vi"
+                                    ? "Thanh toán đủ ngay"
+                                    : "รับชำระครบจำนวนทันที"
+                                }
+                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                              >
+                                {quickPayId === p.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                )}
+                                {lang === "vi" ? "Đủ" : "จ่ายครบ"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openPayModal(p)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                              >
+                                <CreditCard className="h-3.5 w-3.5" />
+                                {t.fees.recordPayment}
+                              </button>
+                            </>
                           )}
                           {p.paid_amount > 0 && (
                             <button

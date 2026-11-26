@@ -61,6 +61,7 @@ export default function AttendancePage() {
   const [submittingMemberId, setSubmittingMemberId] = useState<string | null>(
     null
   );
+  const [batchCheckingIn, setBatchCheckingIn] = useState(false);
 
   // Manual modal
   const [manualOpen, setManualOpen] = useState(false);
@@ -324,6 +325,41 @@ export default function AttendancePage() {
     }
   };
 
+  const handleBatchCheckInAll = async () => {
+    if (notReturnedMembers.length === 0) return;
+    const msg =
+      lang === "vi"
+        ? `Xác nhận điểm danh về KTX cho tất cả ${notReturnedMembers.length} thành viên chưa về?`
+        : `ยืนยันเช็กชื่อกลับเข้าหอพร้อมกันทั้งหมด ${notReturnedMembers.length} คน?`;
+    if (!window.confirm(msg)) return;
+    const supabase = createClient();
+    if (!supabase || !user) return;
+    setBatchCheckingIn(true);
+    try {
+      const now = new Date().toISOString();
+      const rows = notReturnedMembers.map((m) => ({
+        member_id: m.id,
+        log_type: "check_in" as AttendanceLogType,
+        recorded_at: now,
+        is_late: false,
+        notes: lang === "vi" ? "Điểm danh hàng loạt" : "เช็กชื่อเข้าหอแบบกลุ่ม",
+        recorded_by: user.id,
+      }));
+      const { error } = await supabase.from("attendance_logs").insert(rows);
+      if (error) {
+        showToast(error.message, "error");
+        return;
+      }
+      showToast(t.common.successSave, "success");
+      invalidateCache("attendance_page");
+      invalidateCache("dashboard_page");
+      emitAlertsRefresh();
+      await loadData(true);
+    } finally {
+      setBatchCheckingIn(false);
+    }
+  };
+
   const renderTypeBadge = (logType: AttendanceLogType) => {
     switch (logType) {
       case "check_in":
@@ -361,13 +397,30 @@ export default function AttendancePage() {
 
         {/* Who Hasn't Returned Alert Box */}
         <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-rose-600" />
               <h2 className="text-sm font-bold text-rose-950">
                 {t.attendance.notReturnedTitle} ({notReturnedMembers.length})
               </h2>
             </div>
+            {notReturnedMembers.length > 1 && (
+              <button
+                type="button"
+                disabled={batchCheckingIn}
+                onClick={handleBatchCheckInAll}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {batchCheckingIn ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                )}
+                {lang === "vi"
+                  ? `Điểm danh về hết (${notReturnedMembers.length})`
+                  : `เช็กเข้าหอทั้งหมด (${notReturnedMembers.length})`}
+              </button>
+            )}
           </div>
 
           {notReturnedMembers.length === 0 ? (

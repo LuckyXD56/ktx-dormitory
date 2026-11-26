@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import { Loader2, Plus, ShieldCheck, UserCog } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, Search, ShieldCheck, UserCog, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/Modal";
@@ -9,15 +9,17 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { subscribeDormSync } from "@/lib/cache";
 import type { Language, Profile, UserRole } from "@/types/database";
 
 export default function UsersPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { profile: currentProfile, isAdminOrAbove, isSuperAdmin } = useAuth();
   const { showToast } = useToast();
 
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const [addOpen, setAddOpen] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -46,6 +48,32 @@ export default function UsersPage() {
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadUsers();
+    });
+  }, [loadUsers]);
+
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.full_name.toLowerCase().includes(q) ||
+        (u.email ?? "").toLowerCase().includes(q) ||
+        u.role.toLowerCase().includes(q)
+    );
+  }, [users, search]);
+
+  const userStats = useMemo(() => {
+    const active = users.filter((u) => u.is_active).length;
+    const admins = users.filter(
+      (u) => u.role === "super_admin" || u.role === "admin"
+    ).length;
+    const staff = users.filter((u) => u.role === "staff").length;
+    return { total: users.length, active, admins, staff };
+  }, [users]);
 
   const handleRoleChange = async (target: Profile, nextRole: UserRole) => {
     if (!isSuperAdmin && (target.role === "super_admin" || nextRole === "super_admin")) {
@@ -150,82 +178,138 @@ export default function UsersPage() {
             {t.common.noPermission}
           </div>
         ) : (
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-            {loading ? (
-              <div className="flex items-center justify-center py-16 gap-2 text-slate-500">
-                <Loader2 className="h-5 w-5 animate-spin text-navy-600" />
-                <span className="text-sm">{t.common.loading}</span>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+                  <span>{lang === "vi" ? "Tổng tài khoản" : "บัญชีทั้งหมด"}</span>
+                  <Users className="h-4 w-4 text-slate-400" />
+                </div>
+                <p className="mt-1.5 text-xl font-bold text-slate-900">
+                  {userStats.total}
+                </p>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3">{t.members.fullName}</th>
-                      <th className="px-4 py-3">{t.auth.email}</th>
-                      <th className="px-4 py-3">{t.users.role}</th>
-                      <th className="px-4 py-3">{t.users.activeStatus}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {users.map((u) => {
-                      const isSelf = u.id === currentProfile?.id;
-                      const lockedSuper =
-                        u.role === "super_admin" && !isSuperAdmin;
-                      return (
-                        <tr key={u.id} className="hover:bg-slate-50/80">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <UserCog className="h-4 w-4 text-navy-600" />
-                              <span className="font-semibold text-slate-900">
-                                {u.full_name}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-slate-600">
-                            {u.email}
-                          </td>
-                          <td className="px-4 py-3">
-                            <select
-                              disabled={isSelf || lockedSuper}
-                              value={u.role}
-                              onChange={(e) =>
-                                handleRoleChange(u, e.target.value as UserRole)
-                              }
-                              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium disabled:bg-slate-100"
-                            >
-                              {isSuperAdmin && (
-                                <option value="super_admin">
-                                  {t.roles.super_admin}
-                                </option>
-                              )}
-                              <option value="admin">{t.roles.admin}</option>
-                              <option value="staff">{t.roles.staff}</option>
-                            </select>
-                          </td>
-                          <td className="px-4 py-3">
-                            <button
-                              type="button"
-                              disabled={isSelf || lockedSuper}
-                              onClick={() => handleToggleActive(u)}
-                              className="disabled:opacity-60"
-                            >
-                              <Badge
-                                variant={u.is_active ? "emerald" : "rose"}
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+                <p className="text-xs font-medium text-emerald-700">
+                  {t.users.active}
+                </p>
+                <p className="mt-1.5 text-xl font-bold text-emerald-800">
+                  {userStats.active}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+                <div className="flex items-center justify-between text-xs font-medium text-indigo-700">
+                  <span>{t.roles.admin}</span>
+                  <ShieldCheck className="h-4 w-4 text-indigo-500" />
+                </div>
+                <p className="mt-1.5 text-xl font-bold text-indigo-900">
+                  {userStats.admins}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <p className="text-xs font-medium text-slate-600">
+                  {t.roles.staff}
+                </p>
+                <p className="mt-1.5 text-xl font-bold text-slate-800">
+                  {userStats.staff}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t.common.search}
+                  className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-sm focus:border-navy-600 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+              {loading ? (
+                <div className="flex items-center justify-center py-16 gap-2 text-slate-500">
+                  <Loader2 className="h-5 w-5 animate-spin text-navy-600" />
+                  <span className="text-sm">{t.common.loading}</span>
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="py-12 text-center text-sm text-slate-400">
+                  {t.common.noData}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-3">{t.members.fullName}</th>
+                        <th className="px-4 py-3">{t.auth.email}</th>
+                        <th className="px-4 py-3">{t.users.role}</th>
+                        <th className="px-4 py-3">{t.users.activeStatus}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredUsers.map((u) => {
+                        const isSelf = u.id === currentProfile?.id;
+                        const lockedSuper =
+                          u.role === "super_admin" && !isSuperAdmin;
+                        return (
+                          <tr key={u.id} className="hover:bg-slate-50/80">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <UserCog className="h-4 w-4 text-navy-600" />
+                                <span className="font-semibold text-slate-900">
+                                  {u.full_name}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-600">
+                              {u.email}
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                disabled={isSelf || lockedSuper}
+                                value={u.role}
+                                onChange={(e) =>
+                                  handleRoleChange(u, e.target.value as UserRole)
+                                }
+                                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium disabled:bg-slate-100"
                               >
-                                {u.is_active
-                                  ? t.users.active
-                                  : t.users.inactive}
-                              </Badge>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                                {isSuperAdmin && (
+                                  <option value="super_admin">
+                                    {t.roles.super_admin}
+                                  </option>
+                                )}
+                                <option value="admin">{t.roles.admin}</option>
+                                <option value="staff">{t.roles.staff}</option>
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                type="button"
+                                disabled={isSelf || lockedSuper}
+                                onClick={() => handleToggleActive(u)}
+                                className="disabled:opacity-60"
+                              >
+                                <Badge
+                                  variant={u.is_active ? "emerald" : "rose"}
+                                >
+                                  {u.is_active
+                                    ? t.users.active
+                                    : t.users.inactive}
+                                </Badge>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
