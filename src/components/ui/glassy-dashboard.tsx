@@ -508,7 +508,7 @@ const dashboardStyles = `
 .gd-device-total > span { font-size: 10px; margin-top: 5px; color: var(--gd-muted); }
 .gd-device-list { display: grid; gap: 2px; }
 .gd-device-list button {
-  display: grid; grid-template-columns: 66px minmax(0, 1fr) 34px; gap: 7px; align-items: center;
+  display: grid; grid-template-columns: minmax(72px, auto) minmax(0, 1fr) 38px; gap: 7px; align-items: center;
   min-block-size: 32px; text-align: start; background: transparent; border: 0; border-radius: 8px; padding: 3px 6px;
 }
 .gd-device-list button:is(:hover, [aria-pressed="true"]) { background: var(--gd-inner); }
@@ -598,6 +598,7 @@ const dashboardStyles = `
 .gd-work-facts div { border: 1px solid var(--gd-line); border-radius: 9px; padding: 8px; }
 .gd-work-facts dt { font-size: 11px; color: var(--gd-muted); }
 .gd-work-facts dd { margin: 4px 0 0; font-weight: 790; }
+.gd-dialog-inner > .gd-primary { margin-top: 14px; width: 100%; justify-content: center; }
 
 @media (max-width: 1060px) {
   .gd-surround { inline-size: calc(100% - 74px); }
@@ -614,6 +615,8 @@ const dashboardStyles = `
   .gd-ask { grid-area: 2 / 1 / 3 / -1; min-block-size: 41px; }
   .gd-top-actions { grid-area: 1 / 2; }
   .gd-top-actions .gd-icon-button { width: 41px; min-inline-size: 41px; min-block-size: 41px; }
+  .gd-back-link { min-block-size: 41px; padding: 0 11px; }
+  .gd-back-link span { display: none; }
   .gd-stage { border-radius: 23px; }
   .gd-stage-scroll { block-size: auto; padding: 15px 13px 17px; overflow: visible; }
   .gd-view-head { align-items: flex-start; flex-direction: column; gap: 10px; margin-bottom: 14px; }

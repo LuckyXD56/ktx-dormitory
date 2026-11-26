@@ -13,8 +13,10 @@ import {
   CreditCard,
   Loader2,
   Megaphone,
+  RefreshCw,
   Search,
   ShieldAlert,
+  Sparkles,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -24,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
 import {
   emitAlertsRefresh,
+  emitDormSync,
   getCached,
   invalidateCache,
   isCacheFresh,
@@ -99,6 +102,7 @@ export default function DashboardPage() {
   const [quickTab, setQuickTab] = useState<QuickTab>("unpaid");
   const [quickQuery, setQuickQuery] = useState("");
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadDashboard = useCallback(async (force = false) => {
     const supabase = createClient();
@@ -327,9 +331,21 @@ export default function DashboardPage() {
       invalidateCache("dashboard_page");
       invalidateCache("attendance_page");
       emitAlertsRefresh();
+      emitDormSync("attendance_logs");
       await loadDashboard(true);
     } finally {
       setCheckingInId(null);
+    }
+  };
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    try {
+      invalidateCache("dashboard_page");
+      emitAlertsRefresh();
+      await loadDashboard(true);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -347,6 +363,28 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={refreshing}
+              onClick={handleManualRefresh}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              aria-label="Refresh Dashboard"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 text-slate-500 ${refreshing ? "animate-spin" : ""}`}
+              />
+              <span className="hidden sm:inline">
+                {lang === "vi" ? "Làm mới" : "รีเฟรช"}
+              </span>
+            </button>
+            <Link
+              href="/glassy-demo"
+              prefetch
+              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t.nav.glassyView}
+            </Link>
             <Link
               href="/rooms"
               prefetch
@@ -383,7 +421,11 @@ export default function DashboardPage() {
           <>
             {/* 6 KPI Stat Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs border-t-4 border-t-navy-600">
+              <Link
+                href="/members"
+                prefetch
+                className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs border-t-4 border-t-navy-600 hover:shadow-md hover:-translate-y-0.5 transition-all"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">
                     {t.dashboard.totalMembers}
@@ -395,9 +437,13 @@ export default function DashboardPage() {
                 <p className="mt-2 text-2xl font-bold text-slate-900">
                   {members.length}
                 </p>
-              </div>
+              </Link>
 
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs border-t-4 border-t-emerald-500">
+              <Link
+                href="/members"
+                prefetch
+                className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs border-t-4 border-t-emerald-500 hover:shadow-md hover:-translate-y-0.5 transition-all"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">
                     {t.dashboard.activeResidents}
@@ -409,9 +455,13 @@ export default function DashboardPage() {
                 <p className="mt-2 text-2xl font-bold text-emerald-700">
                   {activeMembers.length}
                 </p>
-              </div>
+              </Link>
 
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs border-t-4 border-t-slate-500">
+              <Link
+                href="/rooms"
+                prefetch
+                className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs border-t-4 border-t-slate-500 hover:shadow-md hover:-translate-y-0.5 transition-all"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">
                     {t.dashboard.totalRooms}
@@ -423,9 +473,13 @@ export default function DashboardPage() {
                 <p className="mt-2 text-2xl font-bold text-slate-900">
                   {rooms.length}
                 </p>
-              </div>
+              </Link>
 
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs border-t-4 border-t-sky-500">
+              <Link
+                href="/rooms"
+                prefetch
+                className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs border-t-4 border-t-sky-500 hover:shadow-md hover:-translate-y-0.5 transition-all"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-slate-500">
                     {t.dashboard.availableRooms}
@@ -437,9 +491,13 @@ export default function DashboardPage() {
                 <p className="mt-2 text-2xl font-bold text-sky-700">
                   {availableRoomsCount}
                 </p>
-              </div>
+              </Link>
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-xs border-t-4 border-t-amber-500">
+              <Link
+                href="/fees"
+                prefetch
+                className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 shadow-xs border-t-4 border-t-amber-500 hover:shadow-md hover:-translate-y-0.5 transition-all"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-amber-800">
                     {t.dashboard.unpaidMembers}
@@ -454,9 +512,13 @@ export default function DashboardPage() {
                 <p className="text-[11px] text-amber-700 mt-0.5 truncate">
                   {formatCurrency(totalUnpaidAmount, lang)}
                 </p>
-              </div>
+              </Link>
 
-              <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 shadow-xs border-t-4 border-t-rose-500">
+              <Link
+                href="/attendance"
+                prefetch
+                className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 shadow-xs border-t-4 border-t-rose-500 hover:shadow-md hover:-translate-y-0.5 transition-all"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-rose-800">
                     {t.dashboard.lateOrViolations}
@@ -468,7 +530,7 @@ export default function DashboardPage() {
                 <p className="mt-2 text-2xl font-bold text-rose-900">
                   {notReturnedList.length} / {pendingViolationsCount}
                 </p>
-              </div>
+              </Link>
             </div>
 
             {/* Buildings Summary Strip */}
@@ -482,7 +544,7 @@ export default function DashboardPage() {
                   return (
                     <Link
                       key={item.building.id}
-                      href="/rooms"
+                      href={`/rooms?building=${encodeURIComponent(item.building.code)}`}
                       prefetch
                       className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:border-navy-300 hover:shadow-sm transition-all"
                     >
