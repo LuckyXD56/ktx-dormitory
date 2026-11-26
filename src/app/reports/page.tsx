@@ -1,12 +1,17 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, Loader2, Printer } from "lucide-react";
+import { Download, FileSpreadsheet, Loader2, Printer } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AppShell } from "@/components/layout/AppShell";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
-import { getCached, isCacheFresh, setCached } from "@/lib/cache";
+import {
+  getCached,
+  isCacheFresh,
+  setCached,
+  subscribeDormSync,
+} from "@/lib/cache";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import type {
   AttendanceLog,
@@ -103,6 +108,12 @@ export default function ReportsPage() {
 
   useEffect(() => {
     loadData(false);
+  }, [loadData]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadData(true);
+    });
   }, [loadData]);
 
   const inDateRange = useCallback(
@@ -240,6 +251,30 @@ export default function ReportsPage() {
     XLSX.writeFile(wb, `dorm-report-${reportType}-${Date.now()}.xlsx`);
   };
 
+  const handleExportCsv = () => {
+    if (columns.length === 0) return;
+    const escape = (val: unknown) =>
+      `"${String(val ?? "").replaceAll('"', '""')}"`;
+    const rows = [
+      columns.map(escape).join(","),
+      ...reportData.map((row) =>
+        columns
+          .map((col) => escape((row as Record<string, unknown>)[col] ?? ""))
+          .join(",")
+      ),
+    ];
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + rows.join("\r\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dorm-report-${reportType}-${Date.now()}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
   const reportTitleMap: Record<ReportType, string> = {
     all_members: t.reports.repAllMembers,
     by_building_room: t.reports.repByBuildingRoom,
@@ -267,6 +302,15 @@ export default function ReportsPage() {
             >
               <FileSpreadsheet className="h-4 w-4" />
               {t.common.exportExcel}
+            </button>
+            <button
+              type="button"
+              disabled={reportData.length === 0}
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              CSV
             </button>
             <button
               type="button"

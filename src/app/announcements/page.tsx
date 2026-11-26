@@ -16,6 +16,7 @@ import {
   invalidateCache,
   isCacheFresh,
   setCached,
+  subscribeDormSync,
 } from "@/lib/cache";
 import { formatDateTime } from "@/lib/utils";
 import type {
@@ -101,6 +102,12 @@ export default function AnnouncementsPage() {
 
   useEffect(() => {
     loadData(false);
+  }, [loadData]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadData(true);
+    });
   }, [loadData]);
 
   const refreshAnnouncements = async () => {

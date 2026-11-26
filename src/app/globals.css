@@ -140,4 +140,17 @@
     background: #ffffff !important;
     color: #000000 !important;
   }
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
 }

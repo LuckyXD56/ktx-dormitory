@@ -25,6 +25,7 @@ import {
   invalidateCache,
   isCacheFresh,
   setCached,
+  subscribeDormSync,
 } from "@/lib/cache";
 import { formatDateTime } from "@/lib/utils";
 import type {
@@ -114,6 +115,12 @@ export default function ViolationsPage() {
 
   useEffect(() => {
     loadData(false);
+  }, [loadData]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadData(true);
+    });
   }, [loadData]);
 
   const refreshViolations = async () => {
