@@ -28,6 +28,7 @@ import {
   invalidateCache,
   isCacheFresh,
   setCached,
+  subscribeDormSync,
 } from "@/lib/cache";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -181,6 +182,12 @@ export default function DashboardPage() {
       loadDashboard(false);
     }
   }, [authLoading, loadDashboard]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadDashboard(true);
+    });
+  }, [loadDashboard]);
 
   const notReturnedList = useMemo(() => {
     const latestMap = new Map<string, AttendanceLog>();

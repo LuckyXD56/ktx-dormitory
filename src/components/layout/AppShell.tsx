@@ -55,7 +55,13 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
-import { getCached, isCacheFresh, setCached } from "@/lib/cache";
+import {
+  emitDormSync,
+  getCached,
+  invalidateCache,
+  isCacheFresh,
+  setCached,
+} from "@/lib/cache";
 import { formatDateTime, getInitials } from "@/lib/utils";
 
 interface AlertSummary {
@@ -80,6 +86,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [syncState, setSyncState] = useState<"live" | "connecting" | "offline">(
+    "connecting"
+  );
   const [alerts, setAlerts] = useState<AlertSummary>(
     () => getCached<AlertSummary>("alerts", 120_000) ?? EMPTY_ALERTS
   );
@@ -190,6 +199,78 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.addEventListener("dorm:refresh-alerts", onRefresh);
     return () => window.removeEventListener("dorm:refresh-alerts", onRefresh);
   }, [loadAlerts]);
+
+  // Supabase Realtime multi-device auto-sync + window focus / online refresh
+  useEffect(() => {
+    const supabase = createClient();
+    const updateOnline = () => {
+      if (!navigator.onLine) setSyncState("offline");
+    };
+    window.addEventListener("offline", updateOnline);
+
+    const onFocusOrOnline = () => {
+      if (navigator.onLine) {
+        if (!isCacheFresh("alerts", 25_000)) {
+          loadAlerts(true);
+          emitDormSync();
+        }
+      }
+    };
+    window.addEventListener("online", onFocusOrOnline);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") onFocusOrOnline();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    if (!supabase || !profile) {
+      return () => {
+        window.removeEventListener("offline", updateOnline);
+        window.removeEventListener("online", onFocusOrOnline);
+        document.removeEventListener("visibilitychange", onVisibility);
+      };
+    }
+
+    let debounceTimer: number | null = null;
+    const scheduleSync = (table?: string) => {
+      if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(() => {
+        invalidateCache();
+        loadAlerts(true);
+        emitDormSync(table);
+      }, 450);
+    };
+
+    const tables = [
+      "members",
+      "rooms",
+      "buildings",
+      "payments",
+      "attendance_logs",
+      "violations",
+      "announcements",
+    ];
+    let channel = supabase.channel("dorm-live-sync");
+    tables.forEach((table) => {
+      channel = channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table },
+        () => scheduleSync(table)
+      );
+    });
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") setSyncState("live");
+      else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT")
+        setSyncState(navigator.onLine ? "connecting" : "offline");
+    });
+
+    return () => {
+      if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+      window.removeEventListener("offline", updateOnline);
+      window.removeEventListener("online", onFocusOrOnline);
+      document.removeEventListener("visibilitychange", onVisibility);
+      supabase.removeChannel(channel);
+    };
+  }, [profile, loadAlerts]);
 
   const handleToggleLanguage = async () => {
     const next = lang === "th" ? "vi" : "th";
@@ -540,6 +621,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <span
+              title={
+                syncState === "live"
+                  ? "Realtime Sync Active"
+                  : syncState === "offline"
+                    ? "Offline"
+                    : "Connecting..."
+              }
+              className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                syncState === "live"
+                  ? "border-emerald-200 bg-emerald-50/90 text-emerald-700"
+                  : syncState === "offline"
+                    ? "border-rose-200 bg-rose-50 text-rose-700"
+                    : "border-slate-200 bg-slate-50 text-slate-500"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  syncState === "live"
+                    ? "bg-emerald-500 animate-pulse"
+                    : syncState === "offline"
+                      ? "bg-rose-500"
+                      : "bg-slate-400"
+                }`}
+              />
+              <span>
+                {syncState === "live"
+                  ? "Live"
+                  : syncState === "offline"
+                    ? "Offline"
+                    : "Sync"}
+              </span>
+            </span>
+
             <Link
               href="/glassy-demo"
               prefetch
@@ -694,7 +809,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <main className="flex-1 p-4 sm:p-6 pb-20 md:pb-8 max-w-7xl w-full mx-auto">
+        <main
+          key={pathname}
+          className="animate-fade-up flex-1 p-4 sm:p-6 pb-20 md:pb-8 max-w-7xl w-full mx-auto"
+        >
           {children}
         </main>
 

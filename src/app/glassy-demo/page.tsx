@@ -12,6 +12,7 @@ import {
   invalidateCache,
   isCacheFresh,
   setCached,
+  subscribeDormSync,
 } from "@/lib/cache";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -135,6 +136,12 @@ export default function GlassyDormPage() {
 
   useEffect(() => {
     loadData(false);
+  }, [loadData]);
+
+  useEffect(() => {
+    return subscribeDormSync(() => {
+      loadData(true);
+    });
   }, [loadData]);
 
   const dormData: DormGlassyData = useMemo(() => {

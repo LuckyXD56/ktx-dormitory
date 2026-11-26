@@ -81,3 +81,46 @@ export function emitAlertsRefresh(): void {
     window.dispatchEvent(new Event("dorm:refresh-alerts"));
   }
 }
+
+export function emitDormSync(table?: string): void {
+  invalidateCache();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("dorm:sync", { detail: { table: table ?? "all" } })
+    );
+    try {
+      const ch = new BroadcastChannel("dorm_sync_channel");
+      ch.postMessage({ table: table ?? "all", ts: Date.now() });
+      ch.close();
+    } catch {
+      // BroadcastChannel unavailable
+    }
+  }
+}
+
+export function subscribeDormSync(
+  handler: (table?: string) => void
+): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onEvent = (ev: Event) => {
+    const custom = ev as CustomEvent<{ table?: string }>;
+    handler(custom.detail?.table);
+  };
+  window.addEventListener("dorm:sync", onEvent);
+
+  let channel: BroadcastChannel | null = null;
+  try {
+    channel = new BroadcastChannel("dorm_sync_channel");
+    channel.onmessage = (msg) => {
+      invalidateCache();
+      handler((msg.data as { table?: string } | undefined)?.table);
+    };
+  } catch {
+    channel = null;
+  }
+
+  return () => {
+    window.removeEventListener("dorm:sync", onEvent);
+    channel?.close();
+  };
+}
