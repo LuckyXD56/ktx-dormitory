@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -79,9 +79,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { profile, profileError, role, signOut } = useAuth();
   const [notifOpen, setNotifOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [alerts, setAlerts] = useState<AlertSummary>(
     () => getCached<AlertSummary>("alerts", 120_000) ?? EMPTY_ALERTS
   );
+
+  // Eagerly prefetch core routes in background for instant navigation transitions
+  useEffect(() => {
+    const routes = [
+      "/",
+      "/members",
+      "/rooms",
+      "/attendance",
+      "/fees",
+      "/violations",
+      "/announcements",
+      "/reports",
+      "/glassy-demo",
+    ];
+    const timer = window.setTimeout(() => {
+      routes.forEach((route) => {
+        if (route !== pathname) {
+          router.prefetch(route);
+        }
+      });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [pathname, router]);
+
+  // Ctrl+K / Cmd+K quick focus on navigation search
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const loadAlerts = useCallback(
     async (force = false) => {
@@ -306,16 +343,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="relative mt-3 w-full">
             <Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" />
             <Input
+              ref={searchInputRef}
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && filteredMainNav[0]) {
                   router.push(filteredMainNav[0].href);
+                } else if (e.key === "Escape") {
+                  setSidebarSearch("");
+                  e.currentTarget.blur();
                 }
               }}
               placeholder={t.common.search}
-              className="h-9 bg-slate-50/80 pl-9 text-xs shadow-none border-slate-200 focus-visible:bg-white"
+              className="h-9 bg-slate-50/80 pl-9 pr-14 text-xs shadow-none border-slate-200 focus-visible:bg-white"
             />
+            {sidebarSearch ? (
+              <button
+                type="button"
+                onClick={() => setSidebarSearch("")}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-2 rounded p-0.5 text-slate-400 hover:bg-slate-200/70 hover:text-slate-700"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <kbd className="pointer-events-none absolute right-2.5 top-2 hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-400 lg:inline-block">
+                Ctrl K
+              </kbd>
+            )}
           </div>
         </SidebarHeader>
 
