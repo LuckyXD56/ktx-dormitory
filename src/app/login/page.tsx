@@ -1,0 +1,189 @@
+"use client";
+
+import React, { useState } from "react";
+import { Globe, Loader2, Lock, Mail, ShieldCheck, User } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n";
+import { useToast } from "@/components/providers/ToastProvider";
+
+export default function LoginPage() {
+  const { t, lang, setLang } = useI18n();
+  const { showToast } = useToast();
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const supabase = createClient();
+    if (!supabase) {
+      window.location.href = "/setup";
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (mode === "login") {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (error) {
+          showToast(error.message, "error");
+          return;
+        }
+        if (data.user) {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("is_active")
+            .eq("id", data.user.id)
+            .single();
+          if (prof && prof.is_active === false) {
+            await supabase.auth.signOut();
+            showToast(t.auth.inactiveAccount, "error");
+            return;
+          }
+          window.location.href = "/";
+        }
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim() || email.split("@")[0],
+              preferred_language: lang,
+            },
+          },
+        });
+        if (error) {
+          showToast(error.message, "error");
+          return;
+        }
+        if (data.session) {
+          window.location.href = "/";
+        } else {
+          showToast(t.auth.signupSuccess, "info");
+          setMode("login");
+        }
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-navy-950 via-navy-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-navy-600 text-white shadow-lg shadow-navy-600/30">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-navy-600">
+                {t.appSubtitle}
+              </p>
+              <h1 className="text-base font-bold text-slate-900">{t.appName}</h1>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setLang(lang === "th" ? "vi" : "th")}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-navy-900 hover:bg-slate-50"
+          >
+            <Globe className="h-3.5 w-3.5 text-navy-600" />
+            {lang === "th" ? "🇹🇭 ไทย" : "🇻🇳 Tiếng Việt"}
+          </button>
+        </div>
+
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-slate-900">
+            {mode === "login" ? t.auth.loginTitle : t.auth.signupTitle}
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            {mode === "login" ? t.auth.loginSubtitle : t.auth.signupSubtitle}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "signup" && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                {t.auth.fullName}
+              </label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="สมชาย ผู้ดูแลหอ / Nguyễn Văn A"
+                  className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:border-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-100"
+                />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              {t.auth.email}
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@dormitory.local"
+                className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:border-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-100"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              {t.auth.password}
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:border-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-100"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy-600 py-2.5 text-sm font-semibold text-white shadow-lg shadow-navy-600/25 hover:bg-navy-700 disabled:opacity-50 transition-colors"
+          >
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {mode === "login" ? t.auth.signIn : t.auth.signUp}
+          </button>
+        </form>
+
+        <div className="mt-5 pt-4 border-t border-slate-100 text-center">
+          <button
+            type="button"
+            onClick={() => setMode(mode === "login" ? "signup" : "login")}
+            className="text-xs font-medium text-navy-600 hover:text-navy-800 hover:underline"
+          >
+            {mode === "login" ? t.auth.switchToSignup : t.auth.switchToLogin}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
