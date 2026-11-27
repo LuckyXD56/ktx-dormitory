@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Globe, Loader2, Lock, Mail, ShieldAlert, ShieldCheck, User } from "lucide-react";
+import { Globe, Loader2, Lock, Mail, ShieldAlert, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,9 +92,12 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-navy-600 text-white shadow-lg shadow-navy-600/30">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt={t.appName}
+              className="h-14 w-14 shrink-0 rounded-full bg-white object-cover shadow-md ring-1 ring-slate-200"
+            />
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-navy-600">
                 {t.appSubtitle}

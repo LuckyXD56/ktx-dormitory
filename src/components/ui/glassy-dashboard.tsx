@@ -17,7 +17,6 @@ import {
   Box,
   CircleDollarSign,
   Clock3,
-  Compass,
   DoorOpen,
   Download,
   Ellipsis,
@@ -3281,8 +3280,9 @@ function GlassyDashboard({
       <div className="gd-surround">
         <header className="gd-top">
           <div className="gd-brand">
-            <span className="gd-logo" aria-hidden="true">
-              <Compass aria-hidden="true" />
+            <span className="gd-logo" aria-hidden="true" style={{ padding: 0, overflow: "hidden", background: "#fff" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt={workspaceName} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "9999px" }} />
             </span>
             <div>
               <strong>{workspaceName}</strong>

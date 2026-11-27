@@ -13,7 +13,6 @@ import {
   LayoutDashboard,
   LogOut,
   Search,
-  ShieldCheck,
   Sparkles,
   UserPlus,
   Users,
@@ -418,9 +417,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarHeader className="border-b border-slate-200/70 px-5 py-4">
           <div className="flex items-center justify-between gap-2">
             <Link href="/" className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt={t.appName}
+                className="h-10 w-10 shrink-0 rounded-full bg-white object-cover shadow-sm ring-1 ring-slate-200/80"
+              />
               <div className="min-w-0">
                 <p className="text-sm font-bold tracking-tight text-slate-900 truncate">
                   {t.appName}

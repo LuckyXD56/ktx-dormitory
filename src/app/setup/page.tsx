@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Database, FileCode2, Globe, KeyRound, ShieldCheck } from "lucide-react";
+import { Database, FileCode2, Globe, KeyRound } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 export default function SetupPage() {
@@ -14,9 +14,12 @@ export default function SetupPage() {
       <div className="w-full max-w-2xl rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-600 text-white shadow-lg">
-              <ShieldCheck className="h-7 w-7" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt="KTX Logo"
+              className="h-14 w-14 shrink-0 rounded-full bg-white object-cover shadow-md ring-1 ring-slate-200"
+            />
             <div>
               <h1 className="text-xl font-bold text-slate-900">
                 {isVi

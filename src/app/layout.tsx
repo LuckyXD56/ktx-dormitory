@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   title: "Dormitory Management System | ระบบจัดการหอพัก",
   description:
     "Modern bilingual Thai & Vietnamese Dormitory Management System backed by Supabase",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
