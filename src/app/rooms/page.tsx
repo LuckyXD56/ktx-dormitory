@@ -6,9 +6,7 @@ import {
   LayoutGrid,
   Layers,
   List,
-  Loader2,
   Plus,
-  Sparkles,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { BuildingSummaryStrip } from "@/components/rooms/BuildingSummaryStrip";
@@ -28,7 +26,6 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
-import { createClient } from "@/lib/supabase/client";
 import {
   createBuilding,
   createMember,
@@ -87,10 +84,6 @@ export default function RoomsPage() {
 
   // Room Detail Modal (for Compact Grid click)
   const [inspectRoomId, setInspectRoomId] = useState<string | null>(null);
-
-  // Preset 3x5 setup loading
-  const [runningPreset, setRunningPreset] = useState(false);
-  const [presetConfirmOpen, setPresetConfirmOpen] = useState(false);
 
   // Add Floor Modal
   const [addFloorOpen, setAddFloorOpen] = useState(false);
@@ -158,8 +151,6 @@ export default function RoomsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async (force = false) => {
-    const supabase = createClient();
-    if (!supabase) return;
     if (!force && isCacheFresh("rooms_page", 15_000)) {
       setLoading(false);
       return;
@@ -352,112 +343,6 @@ export default function RoomsPage() {
     invalidateCache("dashboard_page");
     emitAlertsRefresh();
     await loadData(true);
-  };
-
-  // 1-Click 3 Buildings x 5 Floors Preset Setup
-  const handlePreset3x5 = async () => {
-    setPresetConfirmOpen(false);
-    const supabase = createClient();
-    if (!supabase) return;
-    setRunningPreset(true);
-    try {
-      const presetBuildings: {
-        code: string;
-        name: string;
-        gender_policy: GenderPolicy;
-      }[] = [
-        { code: "A", name: "อาคาร A", gender_policy: "male" },
-        { code: "B", name: "อาคาร B", gender_policy: "female" },
-        { code: "C", name: "อาคาร C", gender_policy: "mixed" },
-      ];
-
-      for (const pb of presetBuildings) {
-        const existing = buildings.find(
-          (b) => b.code.toUpperCase() === pb.code
-        );
-        if (!existing) {
-          const { error: insErr } = await supabase.from("buildings").insert({
-            code: pb.code,
-            name: pb.name,
-            total_floors: 5,
-            gender_policy: pb.gender_policy,
-            description: "5 ชั้น",
-          });
-          if (insErr) {
-            showToast(insErr.message, "error");
-            return;
-          }
-        } else if (existing.total_floors < 5) {
-          const { error: updErr } = await supabase
-            .from("buildings")
-            .update({ total_floors: 5 })
-            .eq("id", existing.id);
-          if (updErr) {
-            showToast(updErr.message, "error");
-            return;
-          }
-        }
-      }
-
-      const { data: freshBlds } = await supabase
-        .from("buildings")
-        .select("*")
-        .order("code");
-      const { data: freshRooms } = await supabase
-        .from("rooms")
-        .select("building_id, room_number");
-
-      const existingRoomSet = new Set(
-        (freshRooms ?? []).map(
-          (r: { building_id: string; room_number: string }) =>
-            `${r.building_id}:${r.room_number}`
-        )
-      );
-
-      const newRooms: {
-        building_id: string;
-        room_number: string;
-        floor: number;
-        capacity: number;
-        monthly_fee: number;
-        status: RoomStatus;
-        notes: string;
-      }[] = [];
-
-      ((freshBlds as Building[]) ?? [])
-        .filter((b) => ["A", "B", "C"].includes(b.code.toUpperCase()))
-        .forEach((b) => {
-          for (let fl = 1; fl <= 5; fl++) {
-            for (let rm = 1; rm <= 4; rm++) {
-              const roomNum = `${b.code}${fl}${String(rm).padStart(2, "0")}`;
-              if (!existingRoomSet.has(`${b.id}:${roomNum}`)) {
-                newRooms.push({
-                  building_id: b.id,
-                  room_number: roomNum,
-                  floor: fl,
-                  capacity: 4,
-                  monthly_fee: fl >= 4 ? 3000000 : 2500000,
-                  status: "available",
-                  notes: "",
-                });
-              }
-            }
-          }
-        });
-
-      if (newRooms.length > 0) {
-        const { error } = await supabase.from("rooms").insert(newRooms);
-        if (error) {
-          showToast(error.message, "error");
-          return;
-        }
-      }
-
-      showToast(t.rooms.preset3x5Success, "success");
-      await refreshAfterMutation();
-    } finally {
-      setRunningPreset(false);
-    }
   };
 
   // Building handlers
@@ -843,19 +728,6 @@ export default function RoomsPage() {
             <>
               <button
                 type="button"
-                disabled={runningPreset}
-                onClick={() => setPresetConfirmOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs sm:text-sm font-semibold text-indigo-800 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
-              >
-                {runningPreset ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                {t.rooms.preset3x5}
-              </button>
-              <button
-                type="button"
                 onClick={openAddBuilding}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
@@ -1029,12 +901,11 @@ export default function RoomsPage() {
                 buildings.length === 0 ? (
                   <button
                     type="button"
-                    disabled={runningPreset}
-                    onClick={() => setPresetConfirmOpen(true)}
+                    onClick={openAddBuilding}
                     className="inline-flex items-center gap-2 rounded-xl bg-navy-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy-700"
                   >
-                    <Sparkles className="h-4 w-4" />
-                    {t.rooms.preset3x5}
+                    <Building2 className="h-4 w-4" />
+                    {t.rooms.addBuilding}
                   </button>
                 ) : undefined
               }
@@ -1309,16 +1180,6 @@ export default function RoomsPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
         loading={deleting}
-      />
-
-      <ConfirmDialog
-        open={presetConfirmOpen}
-        onClose={() => setPresetConfirmOpen(false)}
-        onConfirm={handlePreset3x5}
-        loading={runningPreset}
-        title={t.rooms.preset3x5}
-        description={t.rooms.preset3x5Confirm}
-        confirmLabel={t.common.confirm}
       />
     </AppShell>
   );
