@@ -22,6 +22,7 @@ interface AuthContextValue {
   loading: boolean;
   isAdminOrAbove: boolean;
   isSuperAdmin: boolean;
+  isStudent: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -34,6 +35,7 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   isAdminOrAbove: false,
   isSuperAdmin: false,
+  isStudent: false,
   refreshProfile: async () => {},
   signOut: async () => {},
 });
@@ -203,6 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const role: UserRole = profile?.role ?? "staff";
   const isSuperAdmin = role === "super_admin";
   const isAdminOrAbove = role === "super_admin" || role === "admin";
+  const isStudent = role === "student";
 
   return (
     <AuthContext.Provider
@@ -214,6 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         isAdminOrAbove,
         isSuperAdmin,
+        isStudent,
         refreshProfile,
         signOut,
       }}

@@ -226,10 +226,12 @@ export default function AnnouncementsPage() {
           title={t.announcements.title}
           subtitle={t.announcements.subtitle}
           actions={
-            <Button type="button" onClick={openAdd}>
-              <Plus className="h-4 w-4" />
-              {t.announcements.addAnnouncement}
-            </Button>
+            isAdminOrAbove ? (
+              <Button type="button" onClick={openAdd}>
+                <Plus className="h-4 w-4" />
+                {t.announcements.addAnnouncement}
+              </Button>
+            ) : undefined
           }
         />
 
@@ -269,10 +271,12 @@ export default function AnnouncementsPage() {
               icon={<Megaphone className="h-6 w-6" />}
               title={t.common.noData}
               action={
-                <Button type="button" size="sm" onClick={openAdd}>
-                  <Plus className="h-4 w-4" />
-                  {t.announcements.addAnnouncement}
-                </Button>
+                isAdminOrAbove ? (
+                  <Button type="button" size="sm" onClick={openAdd}>
+                    <Plus className="h-4 w-4" />
+                    {t.announcements.addAnnouncement}
+                  </Button>
+                ) : undefined
               }
             />
           </div>
@@ -318,22 +322,24 @@ export default function AnnouncementsPage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(a)}
-                      className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy-700"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeletingId(a.id)}
-                      className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {isAdminOrAbove && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(a)}
+                        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-navy-700"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeletingId(a.id)}
+                        className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

@@ -16,10 +16,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email text NOT NULL,
   full_name text NOT NULL,
-  role text NOT NULL DEFAULT 'staff' CHECK (role IN ('super_admin', 'admin', 'staff')),
+  role text NOT NULL DEFAULT 'staff' CHECK (role IN ('super_admin', 'admin', 'staff', 'student')),
   phone text DEFAULT '',
   avatar_url text,
   preferred_language text NOT NULL DEFAULT 'th' CHECK (preferred_language IN ('th', 'vi', 'en', 'zh', 'lo')),
+  room_id uuid REFERENCES public.rooms(id) ON DELETE SET NULL,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()

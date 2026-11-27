@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { t, lang, setLang } = useI18n();
-  const { profile, profileError, role, signOut } = useAuth();
+  const { profile, profileError, role, isStudent, loading: authLoading, signOut } = useAuth();
   const [notifOpen, setNotifOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
@@ -96,7 +96,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   // Eagerly prefetch core routes in background for instant navigation transitions
+  const isStudentAllowedRoute =
+    pathname === "/" ||
+    pathname.startsWith("/announcements") ||
+    pathname.startsWith("/profile");
+
   useEffect(() => {
+    if (!authLoading && isStudent && !isStudentAllowedRoute) {
+      router.replace("/");
+    }
+  }, [authLoading, isStudent, isStudentAllowedRoute, router]);
+
+  useEffect(() => {
+    if (isStudent) return;
     const routes = [
       "/",
       "/members",
@@ -118,10 +130,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       });
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [pathname, router]);
+  }, [isStudent, pathname, router]);
 
   // Ctrl+K opens Command Palette; "/" focuses sidebar search when not typing
   useEffect(() => {
+    if (isStudent) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -140,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [isStudent]);
 
   const loadAlerts = useCallback(
     async (force = false) => {
@@ -153,6 +166,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           setAlerts(cached);
           return;
         }
+      }
+
+      if (profile.role === "student") {
+        const annRes = await supabase
+          .from("announcements")
+          .select("id, title, published_at")
+          .order("published_at", { ascending: false })
+          .limit(3);
+        const next: AlertSummary = {
+          unpaidCount: 0,
+          notReturnedCount: 0,
+          pendingViolationsCount: 0,
+          recentAnnouncements: annRes.data ?? [],
+        };
+        setAlerts(next);
+        setCached("alerts", next);
+        return;
       }
 
       const [unpaidRes, violRes, annRes, logsRes] = await Promise.all([
@@ -297,91 +327,119 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const mainNav = useMemo(
-    () => [
-      {
-        href: "/",
-        label: t.nav.dashboard,
-        icon: Speedometer,
-        badge: null as string | null,
-      },
-      {
-        href: "/members",
-        label: t.nav.members,
-        icon: Profile2User,
-        badge: null as string | null,
-      },
-      {
-        href: "/rooms",
-        label: t.nav.rooms,
-        icon: Buildings,
-        badge: null as string | null,
-      },
-      {
-        href: "/attendance",
-        label: t.nav.attendance,
-        icon: ClipboardTick,
-        badge:
-          alerts.notReturnedCount > 0 ? String(alerts.notReturnedCount) : null,
-      },
-      {
-        href: "/fees",
-        label: t.nav.fees,
-        icon: MoneyRecive,
-        badge: alerts.unpaidCount > 0 ? String(alerts.unpaidCount) : null,
-      },
-      {
-        href: "/violations",
-        label: t.nav.violations,
-        icon: SecuritySafe,
-        badge:
-          alerts.pendingViolationsCount > 0
-            ? String(alerts.pendingViolationsCount)
-            : null,
-      },
-      {
-        href: "/announcements",
-        label: t.nav.announcements,
-        icon: NotificationBing,
-        badge: null as string | null,
-      },
-      {
-        href: "/reports",
-        label: t.nav.reports,
-        icon: DocumentText,
-        badge: null as string | null,
-      },
-    ],
-    [t, alerts]
+    () =>
+      isStudent
+        ? [
+            {
+              href: "/",
+              label: t.studentPortal.navLabel,
+              icon: Speedometer,
+              badge: null as string | null,
+            },
+            {
+              href: "/announcements",
+              label: t.nav.announcements,
+              icon: NotificationBing,
+              badge: null as string | null,
+            },
+          ]
+        : [
+            {
+              href: "/",
+              label: t.nav.dashboard,
+              icon: Speedometer,
+              badge: null as string | null,
+            },
+            {
+              href: "/members",
+              label: t.nav.members,
+              icon: Profile2User,
+              badge: null as string | null,
+            },
+            {
+              href: "/rooms",
+              label: t.nav.rooms,
+              icon: Buildings,
+              badge: null as string | null,
+            },
+            {
+              href: "/attendance",
+              label: t.nav.attendance,
+              icon: ClipboardTick,
+              badge:
+                alerts.notReturnedCount > 0
+                  ? String(alerts.notReturnedCount)
+                  : null,
+            },
+            {
+              href: "/fees",
+              label: t.nav.fees,
+              icon: MoneyRecive,
+              badge: alerts.unpaidCount > 0 ? String(alerts.unpaidCount) : null,
+            },
+            {
+              href: "/violations",
+              label: t.nav.violations,
+              icon: SecuritySafe,
+              badge:
+                alerts.pendingViolationsCount > 0
+                  ? String(alerts.pendingViolationsCount)
+                  : null,
+            },
+            {
+              href: "/announcements",
+              label: t.nav.announcements,
+              icon: NotificationBing,
+              badge: null as string | null,
+            },
+            {
+              href: "/reports",
+              label: t.nav.reports,
+              icon: DocumentText,
+              badge: null as string | null,
+            },
+          ],
+    [isStudent, t, alerts]
   );
 
   const systemNav = useMemo(
-    () => [
-      {
-        href: "/profile",
-        label: t.nav.profile,
-        icon: UserSquare,
-        badge: null as string | null,
-      },
-      {
-        href: "/users",
-        label: t.nav.users,
-        icon: SecuritySafe,
-        badge: null as string | null,
-      },
-      {
-        href: "/settings",
-        label: t.nav.settings,
-        icon: Setting2,
-        badge: null as string | null,
-      },
-      {
-        href: "/glassy-demo",
-        label: t.nav.glassyView,
-        icon: Crown,
-        badge: "Pro",
-      },
-    ],
-    [t]
+    () =>
+      isStudent
+        ? [
+            {
+              href: "/profile",
+              label: t.nav.profile,
+              icon: UserSquare,
+              badge: null as string | null,
+            },
+          ]
+        : [
+            {
+              href: "/profile",
+              label: t.nav.profile,
+              icon: UserSquare,
+              badge: null as string | null,
+            },
+            {
+              href: "/users",
+              label: t.nav.users,
+              icon: SecuritySafe,
+              badge: null as string | null,
+            },
+            {
+              href: "/settings",
+              label: t.nav.settings,
+              icon: Setting2,
+              badge: null as string | null,
+            },
+            {
+              href: "/glassy-demo",
+              label: t.nav.glassyView,
+              icon: Crown,
+              badge: "Pro",
+            },
+          ],
+    [isStudent, t]
   );
 
   const q = sidebarSearch.trim().toLowerCase();
@@ -448,38 +506,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
 
-          <div className="relative mt-3 w-full">
-            <Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" />
-            <Input
-              ref={searchInputRef}
-              value={sidebarSearch}
-              onChange={(e) => setSidebarSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && filteredMainNav[0]) {
-                  router.push(filteredMainNav[0].href);
-                } else if (e.key === "Escape") {
-                  setSidebarSearch("");
-                  e.currentTarget.blur();
-                }
-              }}
-              placeholder={t.common.search}
-              className="h-9 bg-slate-50/80 pl-9 pr-14 text-xs shadow-none border-slate-200 focus-visible:bg-white"
-            />
-            {sidebarSearch ? (
-              <button
-                type="button"
-                onClick={() => setSidebarSearch("")}
-                aria-label="Clear search"
-                className="absolute right-2.5 top-2 rounded p-0.5 text-slate-400 hover:bg-slate-200/70 hover:text-slate-700"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <kbd className="pointer-events-none absolute right-2.5 top-2 hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-400 lg:inline-block">
-                /
-              </kbd>
-            )}
-          </div>
+          {!isStudent && (
+            <div className="relative mt-3 w-full">
+              <Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" />
+              <Input
+                ref={searchInputRef}
+                value={sidebarSearch}
+                onChange={(e) => setSidebarSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && filteredMainNav[0]) {
+                    router.push(filteredMainNav[0].href);
+                  } else if (e.key === "Escape") {
+                    setSidebarSearch("");
+                    e.currentTarget.blur();
+                  }
+                }}
+                placeholder={t.common.search}
+                className="h-9 bg-slate-50/80 pl-9 pr-14 text-xs shadow-none border-slate-200 focus-visible:bg-white"
+              />
+              {sidebarSearch ? (
+                <button
+                  type="button"
+                  onClick={() => setSidebarSearch("")}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-2 rounded p-0.5 text-slate-400 hover:bg-slate-200/70 hover:text-slate-700"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <kbd className="pointer-events-none absolute right-2.5 top-2 hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-400 lg:inline-block">
+                  /
+                </kbd>
+              )}
+            </div>
+          )}
         </SidebarHeader>
 
         <SidebarContent className="px-3 py-3">
@@ -572,26 +632,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {/* Dormitory Quick Action Card (Sidebar5 Pro Card Style) */}
-          <div className="px-2 pt-3 mt-auto">
-            <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-blue-500/10 p-3.5">
-              <div className="mb-1.5 flex items-center gap-2">
-                <Crown className="size-4.5 text-primary" variant="Bulk" />
-                <h5 className="text-xs font-bold text-slate-900">
-                  {t.nav.quickCardTitle}
-                </h5>
+          {/* Dormitory Quick Action Card (Staff/Admin only) */}
+          {!isStudent && (
+            <div className="px-2 pt-3 mt-auto">
+              <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-blue-500/10 p-3.5">
+                <div className="mb-1.5 flex items-center gap-2">
+                  <Crown className="size-4.5 text-primary" variant="Bulk" />
+                  <h5 className="text-xs font-bold text-slate-900">
+                    {t.nav.quickCardTitle}
+                  </h5>
+                </div>
+                <p className="mb-3 text-[11px] text-slate-600 leading-relaxed">
+                  {t.nav.quickCardDesc}
+                </p>
+                <Button asChild variant="default" size="sm" className="w-full gap-1.5 rounded-lg text-xs">
+                  <Link href="/attendance" prefetch>
+                    <AddSquare className="size-4" variant="Bold" />
+                    {t.nav.quickCardBtn}
+                  </Link>
+                </Button>
               </div>
-              <p className="mb-3 text-[11px] text-slate-600 leading-relaxed">
-                {t.nav.quickCardDesc}
-              </p>
-              <Button asChild variant="default" size="sm" className="w-full gap-1.5 rounded-lg text-xs">
-                <Link href="/attendance" prefetch>
-                  <AddSquare className="size-4" variant="Bold" />
-                  {t.nav.quickCardBtn}
-                </Link>
-              </Button>
             </div>
-          </div>
+          )}
         </SidebarContent>
 
         <SidebarFooter className="border-t border-slate-200/70 p-3.5 space-y-2">
@@ -648,26 +710,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setCmdOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-              aria-label="Quick Search"
-            >
-              <Search className="h-3.5 w-3.5 text-slate-400" />
-              <span className="hidden sm:inline">
-                {pickLang(lang, {
-                  th: "ค้นหาด่วน",
-                  vi: "Tìm nhanh",
-                  en: "Quick Search",
-                  zh: "快速搜索",
-                  lo: "ຄົ້ນຫາດ່ວນ",
-                })}
-              </span>
-              <kbd className="hidden lg:inline-block rounded border border-slate-200 bg-white px-1 py-0.2 text-[10px] text-slate-400">
-                Ctrl K
-              </kbd>
-            </button>
+            {!isStudent && (
+              <button
+                type="button"
+                onClick={() => setCmdOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/90 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                aria-label="Quick Search"
+              >
+                <Search className="h-3.5 w-3.5 text-slate-400" />
+                <span className="hidden sm:inline">
+                  {pickLang(lang, {
+                    th: "ค้นหาด่วน",
+                    vi: "Tìm nhanh",
+                    en: "Quick Search",
+                    zh: "快速搜索",
+                    lo: "ຄົ້ນຫາດ່ວນ",
+                  })}
+                </span>
+                <kbd className="hidden lg:inline-block rounded border border-slate-200 bg-white px-1 py-0.2 text-[10px] text-slate-400">
+                  Ctrl K
+                </kbd>
+              </button>
+            )}
 
             <span
               title={
@@ -703,22 +767,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             </span>
 
-            <Link
-              href="/glassy-demo"
-              prefetch
-              className="hidden lg:inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition-colors"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              {t.nav.glassyView}
-            </Link>
-            <Link
-              href="/members"
-              prefetch
-              className="hidden md:inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              <UserPlus className="h-3.5 w-3.5" />
-              {t.nav.members}
-            </Link>
+            {!isStudent && (
+              <>
+                <Link
+                  href="/glassy-demo"
+                  prefetch
+                  className="hidden lg:inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition-colors"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {t.nav.glassyView}
+                </Link>
+                <Link
+                  href="/members"
+                  prefetch
+                  className="hidden md:inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  {t.nav.members}
+                </Link>
+              </>
+            )}
 
             <LanguageSwitcher
               variant="dropdown"
@@ -865,18 +933,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           key={pathname}
           className="animate-fade-up flex-1 p-4 sm:p-6 pb-20 md:pb-8 max-w-7xl w-full mx-auto"
         >
-          {children}
+          {isStudent && !isStudentAllowedRoute ? null : children}
         </main>
 
         {/* Mobile Bottom Quick Control Bar */}
         <nav className="no-print fixed bottom-0 inset-x-0 z-30 flex items-center justify-around border-t border-slate-200 bg-white/95 backdrop-blur-md py-1.5 md:hidden">
-          {[
-            { href: "/", icon: LayoutDashboard, label: t.nav.dashboard },
-            { href: "/members", icon: Users, label: t.nav.members },
-            { href: "/rooms", icon: Building2, label: t.nav.rooms },
-            { href: "/attendance", icon: ClipboardCheck, label: t.nav.attendance },
-            { href: "/fees", icon: CreditCard, label: t.nav.fees },
-          ].map((item) => {
+          {(isStudent
+            ? [
+                { href: "/", icon: LayoutDashboard, label: t.studentPortal.navLabel },
+                { href: "/announcements", icon: Bell, label: t.nav.announcements },
+                { href: "/profile", icon: Users, label: t.nav.profile },
+              ]
+            : [
+                { href: "/", icon: LayoutDashboard, label: t.nav.dashboard },
+                { href: "/members", icon: Users, label: t.nav.members },
+                { href: "/rooms", icon: Building2, label: t.nav.rooms },
+                { href: "/attendance", icon: ClipboardCheck, label: t.nav.attendance },
+                { href: "/fees", icon: CreditCard, label: t.nav.fees },
+              ]
+          ).map((item) => {
             const Icon = item.icon;
             const active =
               item.href === "/"
@@ -898,7 +973,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
       </SidebarInset>
-      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
+      {!isStudent && (
+        <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
+      )}
     </SidebarProvider>
   );
 }

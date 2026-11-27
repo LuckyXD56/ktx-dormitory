@@ -17,7 +17,7 @@ import type { Language } from "@/types/database";
 
 export default function ProfilePage() {
   const { t, lang, setLang } = useI18n();
-  const { profile, role, refreshProfile } = useAuth();
+  const { profile, role, isStudent, refreshProfile } = useAuth();
   const { showToast } = useToast();
 
   const [fullName, setFullName] = useState("");
@@ -136,9 +136,10 @@ export default function ProfilePage() {
                 <Input
                   id="profile-fullname"
                   required
+                  disabled={isStudent}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="pl-10"
+                  className={`pl-10 ${isStudent ? "bg-slate-50" : ""}`}
                 />
               </div>
             </div>
@@ -150,9 +151,10 @@ export default function ProfilePage() {
                   <Phone className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="profile-phone"
+                    disabled={isStudent}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="pl-10"
+                    className={`pl-10 ${isStudent ? "bg-slate-50" : ""}`}
                   />
                 </div>
               </div>
@@ -184,54 +186,68 @@ export default function ProfilePage() {
             </div>
           </form>
 
-          <form
-            onSubmit={handleChangePassword}
-            className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs space-y-4 h-fit"
-          >
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <KeyRound className="h-4 w-4 text-navy-600" />
-              <h2 className="text-sm font-bold text-slate-900">
-                {t.profile.changePassword}
-              </h2>
+          {isStudent ? (
+            <div className="rounded-2xl border border-navy-200/80 bg-navy-50/50 p-5 sm:p-6 space-y-3 h-fit">
+              <div className="flex items-center gap-2 pb-2 border-b border-navy-100">
+                <KeyRound className="h-4 w-4 text-navy-600" />
+                <h2 className="text-sm font-bold text-slate-900">
+                  {t.profile.changePassword}
+                </h2>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {t.studentPortal.roomAccountPasswordNotice}
+              </p>
             </div>
+          ) : (
+            <form
+              onSubmit={handleChangePassword}
+              className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs space-y-4 h-fit"
+            >
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <KeyRound className="h-4 w-4 text-navy-600" />
+                <h2 className="text-sm font-bold text-slate-900">
+                  {t.profile.changePassword}
+                </h2>
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="new-password">{t.profile.newPassword}</Label>
-              <Input
-                id="new-password"
-                type="password"
-                required
-                minLength={6}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="new-password">{t.profile.newPassword}</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="confirm-password">{t.profile.confirmPassword}</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                required
-                minLength={6}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm-password">{t.profile.confirmPassword}</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
 
-            <div className="pt-2 flex justify-end">
-              <Button type="submit" variant="outline" disabled={savingPassword || !profile}>
-                {savingPassword ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <KeyRound className="h-4 w-4" />
-                )}
-                {savingPassword ? t.common.saving : t.profile.updatePasswordBtn}
-              </Button>
-            </div>
-          </form>
+              <div className="pt-2 flex justify-end">
+                <Button type="submit" variant="outline" disabled={savingPassword || !profile}>
+                  {savingPassword ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="h-4 w-4" />
+                  )}
+                  {savingPassword ? t.common.saving : t.profile.updatePasswordBtn}
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
 
         <p className="text-xs text-slate-400">

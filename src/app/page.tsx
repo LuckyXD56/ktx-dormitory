@@ -21,6 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { StudentRoomPortal } from "@/components/student/StudentRoomPortal";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,7 +70,7 @@ type QuickTab = "unpaid" | "not_returned" | "violations" | "quick_find";
 
 export default function DashboardPage() {
   const { t, lang } = useI18n();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isStudent } = useAuth();
   const { showToast } = useToast();
 
   const initialDash = getCached<{
@@ -147,16 +148,17 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && !isStudent) {
       loadDashboard(false);
     }
-  }, [authLoading, loadDashboard]);
+  }, [authLoading, isStudent, loadDashboard]);
 
   useEffect(() => {
+    if (isStudent) return;
     return subscribeDormSync(() => {
       loadDashboard(true);
     });
-  }, [loadDashboard]);
+  }, [isStudent, loadDashboard]);
 
   const notReturnedList = useMemo(() => {
     const latestMap = new Map<string, AttendanceLog>();
@@ -313,6 +315,14 @@ export default function DashboardPage() {
       setRefreshing(false);
     }
   };
+
+  if (!authLoading && isStudent) {
+    return (
+      <AppShell>
+        <StudentRoomPortal />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -508,6 +518,7 @@ export default function DashboardPage() {
                     item.totalBeds > 0
                       ? Math.round((item.occupied / item.totalBeds) * 100)
                       : 0;
+                  if (!item) return null;
                   return (
                     <Link
                       key={item.building.id}

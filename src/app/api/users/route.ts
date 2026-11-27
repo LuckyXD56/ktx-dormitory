@@ -80,7 +80,9 @@ export async function POST(request: Request) {
     const targetRole =
       role === "super_admin" && requesterProfile.role !== "super_admin"
         ? "admin"
-        : role || "staff";
+        : role === "student"
+          ? "student"
+          : role || "staff";
 
     const { data: created, error: createError } =
       await adminClient.auth.admin.createUser({

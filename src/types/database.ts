@@ -1,4 +1,4 @@
-export type UserRole = "super_admin" | "admin" | "staff";
+export type UserRole = "super_admin" | "admin" | "staff" | "student";
 export type Language = "th" | "vi" | "en" | "zh" | "lo";
 
 export type GenderPolicy = "male" | "female" | "mixed";
@@ -28,6 +28,7 @@ export interface Profile {
   phone: string | null;
   avatar_url: string | null;
   preferred_language: Language;
+  room_id?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

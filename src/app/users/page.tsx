@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Search, ShieldCheck, Trash2, UserCog, Users } from "lucide-react";
+import { BedDouble, Check, Copy, Download, KeyRound, Plus, Search, ShieldCheck, Trash2, UserCog, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,18 @@ export default function UsersPage() {
   const [deletingUser, setDeletingUser] = useState<Profile | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [tab, setTab] = useState<"staff" | "rooms">("staff");
+  const [generatingRooms, setGeneratingRooms] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<
+    { building: string; room_number: string; email: string; password: string }[]
+  >([]);
+  const [credsOpen, setCredsOpen] = useState(false);
+  const [copiedCreds, setCopiedCreds] = useState(false);
+
+  const [resetTarget, setResetTarget] = useState<Profile | null>(null);
+  const [resetPasswordVal, setResetPasswordVal] = useState("");
+  const [resettingPwd, setResettingPwd] = useState(false);
+
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -67,15 +79,19 @@ export default function UsersPage() {
   }, [loadUsers]);
 
   const filteredUsers = useMemo(() => {
+    const base =
+      tab === "rooms"
+        ? users.filter((u) => u.role === "student")
+        : users.filter((u) => u.role !== "student");
     const q = search.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
+    if (!q) return base;
+    return base.filter(
       (u) =>
         u.full_name.toLowerCase().includes(q) ||
         (u.email ?? "").toLowerCase().includes(q) ||
         u.role.toLowerCase().includes(q)
     );
-  }, [users, search]);
+  }, [users, search, tab]);
 
   const userStats = useMemo(() => {
     const active = users.filter((u) => u.is_active).length;
@@ -83,7 +99,8 @@ export default function UsersPage() {
       (u) => u.role === "super_admin" || u.role === "admin"
     ).length;
     const staff = users.filter((u) => u.role === "staff").length;
-    return { total: users.length, active, admins, staff };
+    const students = users.filter((u) => u.role === "student").length;
+    return { total: users.length, active, admins, staff, students };
   }, [users]);
 
   const handleRoleChange = async (target: Profile, nextRole: UserRole) => {
@@ -190,6 +207,72 @@ export default function UsersPage() {
     }
   };
 
+  const handleGenerateRoomAccounts = async () => {
+    setGeneratingRooms(true);
+    try {
+      const res = await fetch("/api/room-accounts", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.error === "SERVICE_ROLE_MISSING") {
+          showToast(t.users.createInfo, "info");
+        } else {
+          showToast(json.error || t.common.errorGeneric, "error");
+        }
+        return;
+      }
+      const list = json.created ?? [];
+      if (list.length === 0) {
+        showToast(t.common.successSave, "success");
+      } else {
+        setCreatedCredentials(list);
+        setCredsOpen(true);
+        setTab("rooms");
+      }
+      await loadUsers();
+      emitDormSync("profiles");
+    } finally {
+      setGeneratingRooms(false);
+    }
+  };
+
+  const handleResetRoomPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetTarget || resetPasswordVal.length < 6) return;
+    setResettingPwd(true);
+    try {
+      const res = await fetch("/api/room-accounts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: resetTarget.id,
+          password: resetPasswordVal,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        showToast(json.error || t.common.errorGeneric, "error");
+        return;
+      }
+      showToast(t.profile.passwordUpdated, "success");
+      setResetTarget(null);
+      setResetPasswordVal("");
+    } finally {
+      setResettingPwd(false);
+    }
+  };
+
+  const handleCopyCredentials = async () => {
+    const csv = [
+      "Building\tRoom\tEmail\tPassword",
+      ...createdCredentials.map(
+        (c) => `${c.building}\t${c.room_number}\t${c.email}\t${c.password}`
+      ),
+    ].join("\n");
+    await navigator.clipboard.writeText(csv);
+    setCopiedCreds(true);
+    window.setTimeout(() => setCopiedCreds(false), 2000);
+  };
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -198,10 +281,23 @@ export default function UsersPage() {
           subtitle={t.users.subtitle}
           actions={
             isAdminOrAbove ? (
-              <Button type="button" onClick={() => setAddOpen(true)}>
-                <Plus className="h-4 w-4" />
-                {t.users.addUser}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={generatingRooms}
+                  onClick={handleGenerateRoomAccounts}
+                >
+                  <BedDouble className="h-4 w-4" />
+                  {generatingRooms
+                    ? t.common.loading
+                    : t.studentPortal.generateRoomAccounts}
+                </Button>
+                <Button type="button" onClick={() => setAddOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  {t.users.addUser}
+                </Button>
+              </div>
             ) : undefined
           }
         />
@@ -239,6 +335,44 @@ export default function UsersPage() {
                 label={t.roles.staff}
                 value={userStats.staff}
               />
+              <StatCard
+                tone="amber"
+                label={t.studentPortal.roomAccountsTab}
+                value={userStats.students}
+                icon={<BedDouble className="h-4 w-4" />}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setTab("staff")}
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                    tab === "staff"
+                      ? "bg-navy-700 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {t.studentPortal.staffAccountsTab} ({userStats.admins + userStats.staff})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab("rooms")}
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                    tab === "rooms"
+                      ? "bg-navy-700 text-white shadow-xs"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {t.studentPortal.roomAccountsTab} ({userStats.students})
+                </button>
+              </div>
+              {tab === "rooms" && (
+                <p className="text-xs text-slate-500">
+                  {t.studentPortal.roomAccountsInfo}
+                </p>
+              )}
             </div>
 
             <FilterBar
@@ -297,22 +431,26 @@ export default function UsersPage() {
                               {u.email}
                             </td>
                             <td className="px-4 py-3">
-                              <Select
-                                disabled={isSelf || lockedSuper}
-                                value={u.role}
-                                onChange={(e) =>
-                                  handleRoleChange(u, e.target.value as UserRole)
-                                }
-                                className="h-8 w-auto min-w-[160px] text-xs font-medium"
-                              >
-                                {isSuperAdmin && (
-                                  <option value="super_admin">
-                                    {t.roles.super_admin}
-                                  </option>
-                                )}
-                                <option value="admin">{t.roles.admin}</option>
-                                <option value="staff">{t.roles.staff}</option>
-                              </Select>
+                              {u.role === "student" ? (
+                                <Badge variant="sky">{t.roles.student}</Badge>
+                              ) : (
+                                <Select
+                                  disabled={isSelf || lockedSuper}
+                                  value={u.role}
+                                  onChange={(e) =>
+                                    handleRoleChange(u, e.target.value as UserRole)
+                                  }
+                                  className="h-8 w-auto min-w-[160px] text-xs font-medium"
+                                >
+                                  {isSuperAdmin && (
+                                    <option value="super_admin">
+                                      {t.roles.super_admin}
+                                    </option>
+                                  )}
+                                  <option value="admin">{t.roles.admin}</option>
+                                  <option value="staff">{t.roles.staff}</option>
+                                </Select>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <button
@@ -331,21 +469,36 @@ export default function UsersPage() {
                               </button>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <button
-                                type="button"
-                                disabled={isSelf || lockedSuper}
-                                onClick={() => setDeletingUser(u)}
-                                title={
-                                  isSelf || lockedSuper
-                                    ? t.common.noPermission
-                                    : t.common.delete
-                                }
-                                aria-label={`${t.common.delete} ${u.email}`}
-                                className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                <span>{t.common.delete}</span>
-                              </button>
+                              <div className="inline-flex items-center gap-1.5">
+                                {u.role === "student" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setResetTarget(u);
+                                      setResetPasswordVal("");
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-navy-200 bg-navy-50 px-2.5 py-1 text-xs font-semibold text-navy-700 hover:bg-navy-100 transition-colors"
+                                  >
+                                    <KeyRound className="h-3.5 w-3.5" />
+                                    <span>{t.studentPortal.resetRoomPassword}</span>
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={isSelf || lockedSuper}
+                                  onClick={() => setDeletingUser(u)}
+                                  title={
+                                    isSelf || lockedSuper
+                                      ? t.common.noPermission
+                                      : t.common.delete
+                                  }
+                                  aria-label={`${t.common.delete} ${u.email}`}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span>{t.common.delete}</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -458,6 +611,102 @@ export default function UsersPage() {
           </div>
         </form>
       </Modal>
+      <Modal
+        open={Boolean(resetTarget)}
+        onClose={() => setResetTarget(null)}
+        title={t.studentPortal.resetRoomPassword}
+        subtitle={resetTarget ? `${resetTarget.full_name} (${resetTarget.email})` : undefined}
+        maxWidth="sm"
+      >
+        <form onSubmit={handleResetRoomPassword} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              {t.profile.newPassword}
+            </label>
+            <input
+              type="text"
+              minLength={6}
+              required
+              value={resetPasswordVal}
+              onChange={(e) => setResetPasswordVal(e.target.value)}
+              placeholder="Ktx@123456"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-mono"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setResetTarget(null)}>
+              {t.common.cancel}
+            </Button>
+            <Button type="submit" disabled={resettingPwd}>
+              <KeyRound className="h-4 w-4" />
+              {resettingPwd ? t.common.saving : t.common.save}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={credsOpen}
+        onClose={() => setCredsOpen(false)}
+        title={t.studentPortal.credentialsModalTitle}
+        subtitle={t.studentPortal.credentialsModalSubtitle}
+        maxWidth="lg"
+      >
+        <div className="space-y-3">
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={handleCopyCredentials}>
+              {copiedCreds ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copiedCreds ? t.common.successSave : "Copy"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const csv = [
+                  "Building,Room,Email,Password",
+                  ...createdCredentials.map(
+                    (c) => `"${c.building}","${c.room_number}","${c.email}","${c.password}"`
+                  ),
+                ].join("\n");
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "ktx-room-accounts.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
+            </Button>
+          </div>
+          <div className="max-h-80 overflow-y-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 font-semibold text-slate-600 border-b border-slate-200">
+                <tr>
+                  <th className="px-3 py-2">{t.common.building}</th>
+                  <th className="px-3 py-2">{t.common.room}</th>
+                  <th className="px-3 py-2">{t.auth.email}</th>
+                  <th className="px-3 py-2">{t.auth.password}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {createdCredentials.map((c) => (
+                  <tr key={c.email}>
+                    <td className="px-3 py-2">{c.building}</td>
+                    <td className="px-3 py-2 font-medium">{c.room_number}</td>
+                    <td className="px-3 py-2 font-mono">{c.email}</td>
+                    <td className="px-3 py-2 font-mono font-bold text-navy-700">{c.password}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Modal>
+
       <ConfirmDialog
         open={Boolean(deletingUser)}
         onClose={() => !deleting && setDeletingUser(null)}
