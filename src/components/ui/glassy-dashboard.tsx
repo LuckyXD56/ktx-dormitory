@@ -106,8 +106,131 @@ export interface GlassyDashboardProps {
 const studioPhoto =
   "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&q=80";
 
+type GdPalette = "navy" | "emerald" | "violet" | "warm";
+const gdPalettes: { id: GdPalette; label: string; swatch: string }[] = [
+  { id: "navy", label: "Ocean Navy", swatch: "#2563eb" },
+  { id: "emerald", label: "Jade Emerald", swatch: "#10b981" },
+  { id: "violet", label: "Royal Violet", swatch: "#7c3aed" },
+  { id: "warm", label: "Warm Studio", swatch: "#b47349" },
+];
+
 const dashboardStyles = `
 .gd-app {
+  --gd-ink: #0f172a;
+  --gd-muted: #334155;
+  --gd-line: rgb(15 23 42 / 12%);
+  --gd-grid: rgb(15 23 42 / 15%);
+  --gd-rim: rgb(255 255 255 / 68%);
+  --gd-edge-light: rgb(255 255 255 / 92%);
+  --gd-edge-shade: rgb(15 23 42 / 14%);
+  --gd-gloss: rgb(255 255 255 / 55%);
+  --gd-frame: rgb(239 246 255 / 44%);
+  --gd-rail: rgb(241 245 249 / 64%);
+  --gd-card: rgb(255 255 255 / 64%);
+  --gd-card-light: rgb(255 255 255 / 45%);
+  --gd-raised: rgb(255 255 255 / 90%);
+  --gd-inner: rgb(255 255 255 / 50%);
+  --gd-surface: #f1f5f9;
+  --gd-track: rgb(30 58 138 / 14%);
+  --gd-primary: #1e3a8a;
+  --gd-primary-ink: #ffffff;
+  --gd-pick: #ffffff;
+  --gd-pick-ink: #0f172a;
+  --gd-coral: #be123c;
+  --gd-teal: #059669;
+  --gd-ochre: #b45309;
+  --gd-graph-ink: #1e293b;
+  --gd-focus: #2563eb;
+  --gd-dark-shadow: 15 23 42;
+  inline-size: 100%;
+  min-inline-size: 0;
+  flex: 1 1 100%;
+  position: relative;
+  isolation: isolate;
+  min-block-size: 100svh;
+  background: #c7d9ef;
+  color: var(--gd-ink);
+  color-scheme: light;
+  font-family: "Manrope Variable", "Noto Sans Thai", "Sarabun", Manrope, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.gd-app[data-theme="dark"] {
+  --gd-ink: #f8fafc;
+  --gd-muted: #cbd5e1;
+  --gd-line: rgb(148 163 184 / 20%);
+  --gd-grid: rgb(148 163 184 / 20%);
+  --gd-rim: rgb(148 163 184 / 28%);
+  --gd-edge-light: rgb(226 232 240 / 26%);
+  --gd-edge-shade: rgb(2 6 23 / 42%);
+  --gd-gloss: rgb(148 163 184 / 12%);
+  --gd-frame: rgb(15 23 42 / 64%);
+  --gd-rail: rgb(15 23 42 / 72%);
+  --gd-card: rgb(30 41 59 / 64%);
+  --gd-card-light: rgb(51 65 85 / 42%);
+  --gd-raised: rgb(51 65 85 / 86%);
+  --gd-inner: rgb(30 41 59 / 58%);
+  --gd-surface: #0f172a;
+  --gd-track: rgb(148 163 184 / 20%);
+  --gd-primary: #3b82f6;
+  --gd-primary-ink: #ffffff;
+  --gd-pick: #e0f2fe;
+  --gd-pick-ink: #0f172a;
+  --gd-coral: #fb7185;
+  --gd-teal: #34d399;
+  --gd-ochre: #fbbf24;
+  --gd-graph-ink: #cbd5e1;
+  --gd-focus: #38bdf8;
+  --gd-dark-shadow: 2 6 23;
+  background: #0b1324;
+  color-scheme: dark;
+}
+.gd-app[data-palette="emerald"] {
+  --gd-frame: rgb(236 253 245 / 44%);
+  --gd-rail: rgb(236 253 245 / 62%);
+  --gd-surface: #ecfdf5;
+  --gd-primary: #065f46;
+  --gd-teal: #059669;
+  --gd-focus: #10b981;
+  background: #a7f3d0;
+}
+.gd-app[data-palette="emerald"][data-theme="dark"] {
+  --gd-frame: rgb(6 38 30 / 68%);
+  --gd-rail: rgb(6 38 30 / 74%);
+  --gd-card: rgb(12 58 46 / 62%);
+  --gd-inner: rgb(12 58 46 / 54%);
+  --gd-raised: rgb(20 83 65 / 86%);
+  --gd-surface: #06281e;
+  --gd-primary: #10b981;
+  --gd-primary-ink: #042f2e;
+  --gd-pick: #d1fae5;
+  --gd-focus: #34d399;
+  background: #041d17;
+}
+.gd-app[data-palette="violet"] {
+  --gd-frame: rgb(238 242 255 / 46%);
+  --gd-rail: rgb(238 242 255 / 64%);
+  --gd-surface: #eef2ff;
+  --gd-primary: #4f46e5;
+  --gd-teal: #0d9488;
+  --gd-focus: #7c3aed;
+  background: #c7d2fe;
+}
+.gd-app[data-palette="violet"][data-theme="dark"] {
+  --gd-frame: rgb(24 20 58 / 68%);
+  --gd-rail: rgb(24 20 58 / 74%);
+  --gd-card: rgb(37 32 82 / 64%);
+  --gd-inner: rgb(37 32 82 / 55%);
+  --gd-raised: rgb(55 48 118 / 86%);
+  --gd-surface: #18143a;
+  --gd-primary: #8b5cf6;
+  --gd-primary-ink: #ffffff;
+  --gd-pick: #ede9fe;
+  --gd-focus: #a78bfa;
+  background: #110e29;
+}
+.gd-app[data-palette="warm"] {
   --gd-ink: #25201e;
   --gd-muted: #423731;
   --gd-line: rgb(74 49 33 / 15%);
@@ -134,21 +257,9 @@ const dashboardStyles = `
   --gd-graph-ink: #40332d;
   --gd-focus: #194b48;
   --gd-dark-shadow: 35 21 14;
-  inline-size: 100%;
-  min-inline-size: 0;
-  flex: 1 1 100%;
-  position: relative;
-  isolation: isolate;
-  min-block-size: 100svh;
   background: #ab8e76;
-  color: var(--gd-ink);
-  color-scheme: light;
-  font-family: "Manrope Variable", Manrope, system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 550;
-  font-variant-numeric: tabular-nums;
 }
-.gd-app[data-theme="dark"] {
+.gd-app[data-palette="warm"][data-theme="dark"] {
   --gd-ink: #fff6e9;
   --gd-muted: #e5d5c7;
   --gd-line: rgb(243 221 198 / 19%);
@@ -176,7 +287,6 @@ const dashboardStyles = `
   --gd-focus: #f9bf9b;
   --gd-dark-shadow: 10 4 3;
   background: #40322b;
-  color-scheme: dark;
 }
 
 .gd-app *, .gd-app *::before, .gd-app *::after { box-sizing: border-box; }
@@ -199,15 +309,41 @@ const dashboardStyles = `
 .gd-background {
   object-fit: cover;
   object-position: center 60%;
-  filter: sepia(.22) saturate(.78) brightness(.86);
+  filter: saturate(.88) brightness(.94);
 }
 .gd-app::before {
   content: "";
   z-index: -1;
+  background: linear-gradient(125deg, rgb(30 64 175 / 26%), transparent 46%, rgb(14 165 233 / 22%) 78%, transparent 100%),
+    linear-gradient(0deg, rgb(15 23 42 / 24%), transparent 58%);
+}
+.gd-app[data-palette="emerald"]::before {
+  background: linear-gradient(125deg, rgb(6 95 70 / 30%), transparent 46%, rgb(16 185 129 / 22%) 78%, transparent 100%),
+    linear-gradient(0deg, rgb(4 47 46 / 26%), transparent 58%);
+}
+.gd-app[data-palette="violet"]::before {
+  background: linear-gradient(125deg, rgb(79 70 229 / 28%), transparent 46%, rgb(139 92 246 / 24%) 78%, transparent 100%),
+    linear-gradient(0deg, rgb(24 20 58 / 28%), transparent 58%);
+}
+.gd-app[data-palette="warm"] .gd-background {
+  filter: sepia(.22) saturate(.78) brightness(.86);
+}
+.gd-app[data-palette="warm"]::before {
   background: linear-gradient(116deg, rgb(73 48 37 / 35%), transparent 43%, rgb(162 101 63 / 24%) 76%, transparent 100%),
     linear-gradient(0deg, rgb(53 33 25 / 34%), transparent 58%);
 }
-.gd-app[data-theme="dark"] .gd-background { filter: sepia(.15) saturate(.75) brightness(.61); }
+.gd-app[data-theme="dark"] .gd-background { filter: saturate(.78) brightness(.52); }
+.gd-app[data-palette="warm"][data-theme="dark"] .gd-background { filter: sepia(.15) saturate(.75) brightness(.61); }
+.gd-palette-bar {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 8px; border-radius: 999px; border: 1px solid var(--gd-line); background: var(--gd-inner);
+}
+.gd-swatch {
+  inline-size: 16px; block-size: 16px; border-radius: 50%; border: 2px solid transparent; padding: 0;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.gd-swatch:hover { transform: scale(1.14); }
+.gd-swatch[aria-pressed="true"] { border-color: var(--gd-ink); transform: scale(1.12); box-shadow: 0 0 0 2px var(--gd-pick); }
 .gd-surround {
   inline-size: min(calc(100% - 100px), 1380px);
   margin-inline: auto;
@@ -2865,6 +3001,34 @@ function GlassyDashboard({
   const [period, setPeriod] = useState<Period>("30 days");
   const [theme, setTheme] = useState(initialTheme);
   useEffect(() => setTheme(initialTheme), [initialTheme]);
+  const [palette, setPalette] = useState<GdPalette>("navy");
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("gd_palette") as GdPalette | null;
+      if (saved && gdPalettes.some((p) => p.id === saved)) {
+        setPalette(saved);
+      }
+    } catch {
+      // Ignore storage error
+    }
+  }, []);
+  const handleSelectPalette = (next: GdPalette) => {
+    setPalette(next);
+    try {
+      window.localStorage.setItem("gd_palette", next);
+    } catch {
+      // Ignore storage error
+    }
+  };
+  const handleToggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    try {
+      window.localStorage.setItem("gd_theme", next);
+    } catch {
+      // Ignore storage error
+    }
+  };
   const [modal, setModal] = useState<Modal>(null);
   const [work, setWork] = useState<AnyWorkItem[]>(initialWork);
   const [resolving, setResolving] = useState(false);
@@ -3097,6 +3261,7 @@ function GlassyDashboard({
     <div
       className="gd-app"
       data-theme={theme}
+      data-palette={palette}
       ref={root}
       style={
         {
@@ -3155,6 +3320,24 @@ function GlassyDashboard({
                 </span>
               </Link>
             )}
+            <div
+              className="gd-palette-bar"
+              role="group"
+              aria-label="Theme color palette"
+            >
+              {gdPalettes.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="gd-swatch"
+                  title={p.label}
+                  aria-label={p.label}
+                  aria-pressed={palette === p.id}
+                  style={{ background: p.swatch }}
+                  onClick={() => handleSelectPalette(p.id)}
+                />
+              ))}
+            </div>
             <button
               title={
                 theme === "light"
@@ -3168,7 +3351,7 @@ function GlassyDashboard({
                   ? "Switch to dark theme"
                   : "Switch to light theme"
               }
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              onClick={handleToggleTheme}
             >
               {theme === "light" ? (
                 <Moon aria-hidden="true" />

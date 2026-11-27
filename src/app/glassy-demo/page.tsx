@@ -59,27 +59,28 @@ export default function GlassyDormPage() {
 
   useEffect(() => {
     const html = document.documentElement;
-    const preferred = matchMedia("(prefers-color-scheme: dark)");
     const update = () => {
+      try {
+        const saved = window.localStorage.getItem("gd_theme");
+        if (saved === "dark" || saved === "light") {
+          setDark(saved === "dark");
+          return;
+        }
+      } catch {
+        // Ignore storage error
+      }
       if (html.classList.contains("dark") || html.dataset.theme === "dark")
         setDark(true);
-      else if (
-        html.classList.contains("light") ||
-        html.dataset.theme === "light"
-      )
-        setDark(false);
-      else setDark(preferred.matches);
+      else setDark(false);
     };
     const changes = new MutationObserver(update);
     changes.observe(html, {
       attributes: true,
       attributeFilter: ["class", "data-theme"],
     });
-    preferred.addEventListener("change", update);
     update();
     return () => {
       changes.disconnect();
-      preferred.removeEventListener("change", update);
     };
   }, []);
 
