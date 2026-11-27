@@ -73,8 +73,7 @@ const config = {
       },
       fontFamily: {
         sans: [
-          "var(--font-noto-thai)",
-          "var(--font-be-vietnam)",
+          "var(--font-anuphan)",
           "system-ui",
           "sans-serif",
         ],

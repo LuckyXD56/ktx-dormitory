@@ -1,20 +1,13 @@
 import type { Metadata } from "next";
-import { Noto_Sans_Thai, Be_Vietnam_Pro } from "next/font/google";
+import { Anuphan } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
 
-const notoThai = Noto_Sans_Thai({
-  subsets: ["thai", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-noto-thai",
-});
-
-const beVietnam = Be_Vietnam_Pro({
-  subsets: ["vietnamese", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-be-vietnam",
+const anuphan = Anuphan({
+  subsets: ["thai", "vietnamese", "latin"],
+  variable: "--font-anuphan",
 });
 
 export const metadata: Metadata = {
@@ -33,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" className={`${notoThai.variable} ${beVietnam.variable}`}>
+    <html lang="th" className={anuphan.variable}>
       <body className="font-sans min-h-screen bg-slate-50 text-slate-900">
         <LanguageProvider>
           <ToastProvider>

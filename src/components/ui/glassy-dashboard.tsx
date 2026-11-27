@@ -150,7 +150,7 @@ const dashboardStyles = `
   background: #c7d9ef;
   color: var(--gd-ink);
   color-scheme: light;
-  font-family: "Manrope Variable", "Noto Sans Thai", "Sarabun", Manrope, system-ui, sans-serif;
+  font-family: var(--font-anuphan), "Manrope Variable", system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
