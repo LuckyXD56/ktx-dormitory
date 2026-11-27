@@ -77,6 +77,26 @@ export interface Member {
   room?: (Room & { building?: Building | null }) | null;
 }
 
+export interface UtilityReading {
+  id: string;
+  room_id: string;
+  billing_month: string;
+  elec_prev: number;
+  elec_curr: number;
+  elec_rate: number;
+  water_prev: number;
+  water_curr: number;
+  water_rate: number;
+  elec_amount: number;
+  water_amount: number;
+  billed_to_payments: boolean;
+  notes: string | null;
+  recorded_by: string | null;
+  created_at: string;
+  updated_at: string;
+  room?: (Room & { building?: Building | null }) | null;
+}
+
 export interface AttendanceLog {
   id: string;
   member_id: string;
@@ -108,6 +128,26 @@ export interface Payment {
   created_at: string;
   updated_at: string;
   member?: Member | null;
+  room?: (Room & { building?: Building | null }) | null;
+}
+
+export interface UtilityReading {
+  id: string;
+  room_id: string;
+  billing_month: string;
+  elec_prev: number;
+  elec_curr: number;
+  elec_rate: number;
+  water_prev: number;
+  water_curr: number;
+  water_rate: number;
+  elec_amount: number;
+  water_amount: number;
+  billed_to_payments: boolean;
+  notes: string | null;
+  recorded_by: string | null;
+  created_at: string;
+  updated_at: string;
   room?: (Room & { building?: Building | null }) | null;
 }
 

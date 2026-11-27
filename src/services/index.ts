@@ -8,3 +8,4 @@ export * from "./violations.service";
 export * from "./announcements.service";
 export * from "./users.service";
 export * from "./dashboard.service";
+export * from "./utilities.service";

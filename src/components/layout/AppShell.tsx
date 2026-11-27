@@ -23,6 +23,7 @@ import {
   ClipboardTick,
   Crown,
   DocumentText,
+  Flash,
   MoneyRecive,
   NotificationBing,
   Profile2User,
@@ -148,6 +149,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       "/rooms",
       "/attendance",
       "/fees",
+      "/utilities",
       "/violations",
       "/announcements",
       "/reports",
@@ -411,6 +413,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               badge: alerts.unpaidCount > 0 ? String(alerts.unpaidCount) : null,
             },
             {
+              href: "/utilities",
+              label: pickLang(lang, {
+                th: "ค่าไฟ / ค่าน้ำ",
+                vi: "Điện & Nước",
+                en: "Utilities",
+                zh: "水电表",
+                lo: "ຄ່າໄຟ / ຄ່ານ້ຳ",
+              }),
+              icon: Flash,
+              badge: null as string | null,
+            },
+            {
               href: "/violations",
               label: t.nav.violations,
               icon: SecuritySafe,
@@ -432,7 +446,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               badge: null as string | null,
             },
           ],
-    [hideStaffChrome, t, alerts]
+    [hideStaffChrome, t, alerts, lang]
   );
 
   const systemNav = useMemo(

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   CheckCircle2,
   CreditCard,
@@ -10,6 +11,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  Zap,
 } from "lucide-react";
 import { CreateBillModal, ReceiptModal, RecordPaymentModal } from "@/components/fees/FeeModals";
 import { AppShell } from "@/components/layout/AppShell";
@@ -450,6 +452,18 @@ export default function FeesPage() {
           subtitle={t.fees.subtitle}
           actions={
             <>
+              <Button asChild type="button" variant="outline" className="gap-1.5">
+                <Link href="/utilities">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  {pickLang(lang, {
+                    th: "มิเตอร์ไฟ / น้ำ",
+                    vi: "Chỉ số điện / nước",
+                    en: "Utility Meters",
+                    zh: "水电表录入",
+                    lo: "ມິເຕີໄຟ / ນ້ຳ",
+                  })}
+                </Link>
+              </Button>
               {unpaidFiltered.length > 1 && (
                 <Button
                   type="button"
