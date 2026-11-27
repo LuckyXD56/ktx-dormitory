@@ -596,6 +596,8 @@ export default function RoomsPage() {
       }
 
       if (afAutoRooms && afRoomsPerFloor > 0) {
+        const cleanCode = b.code.replace(/\s*[0-9]+$/, "").trim();
+        const roomPrefix = cleanCode.length > 2 ? `${cleanCode} ` : cleanCode;
         const existingNums = new Set(
           rooms
             .filter((r) => r.building_id === b.id)
@@ -604,7 +606,7 @@ export default function RoomsPage() {
         const newRooms = [];
         for (let fl = startFloor; fl <= nextTotalFloors; fl++) {
           for (let idx = 1; idx <= afRoomsPerFloor; idx++) {
-            const num = `${b.code}${fl}${String(idx).padStart(2, "0")}`;
+            const num = `${roomPrefix}${fl}${String(idx).padStart(2, "0")}`;
             if (!existingNums.has(num)) {
               newRooms.push({
                 building_id: b.id,
@@ -649,7 +651,7 @@ export default function RoomsPage() {
         ? buildings.find((b) => b.id === selectedBuilding) ?? buildings[0]
         : buildings[0];
     setBulkBuildingId(defaultB?.id ?? "");
-    setBulkPrefix(defaultB?.code ?? "");
+    setBulkPrefix((defaultB?.code ?? "").replace(/\s*[0-9]+$/, "").trim());
     setBulkFloorFrom(1);
     setBulkFloorTo(defaultB?.total_floors ?? 5);
     setBulkRoomsPerFloor(4);
@@ -669,10 +671,13 @@ export default function RoomsPage() {
           .filter((r) => r.building_id === bulkBuildingId)
           .map((r) => r.room_number)
       );
+      const rawPrefix = bulkPrefix.trim();
+      const normalizedPrefix =
+        rawPrefix.length > 2 ? `${rawPrefix} ` : rawPrefix;
       const rowsToInsert = [];
       for (let fl = bulkFloorFrom; fl <= bulkFloorTo; fl++) {
         for (let idx = 1; idx <= bulkRoomsPerFloor; idx++) {
-          const num = `${bulkPrefix.trim()}${fl}${String(idx).padStart(2, "0")}`;
+          const num = `${normalizedPrefix}${fl}${String(idx).padStart(2, "0")}`;
           if (!existingNumbers.has(num)) {
             rowsToInsert.push({
               building_id: bulkBuildingId,
