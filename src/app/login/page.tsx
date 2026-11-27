@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Globe, Loader2, Lock, Mail, ShieldAlert, User } from "lucide-react";
+import { Globe, Loader2, Lock, Mail, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +12,8 @@ import { useToast } from "@/components/providers/ToastProvider";
 export default function LoginPage() {
   const { t, lang, setLang } = useI18n();
   const { showToast } = useToast();
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [inactiveNotice, setInactiveNotice] = useState(false);
 
@@ -38,49 +36,26 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      if (mode === "login") {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (error) {
-          showToast(error.message, "error");
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) {
+        showToast(error.message, "error");
+        return;
+      }
+      if (data.user) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("is_active")
+          .eq("id", data.user.id)
+          .single();
+        if (prof && prof.is_active === false) {
+          await supabase.auth.signOut();
+          showToast(t.auth.inactiveAccount, "error");
           return;
         }
-        if (data.user) {
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("is_active")
-            .eq("id", data.user.id)
-            .single();
-          if (prof && prof.is_active === false) {
-            await supabase.auth.signOut();
-            showToast(t.auth.inactiveAccount, "error");
-            return;
-          }
-          window.location.href = "/";
-        }
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: {
-            data: {
-              full_name: fullName.trim() || email.split("@")[0],
-              preferred_language: lang,
-            },
-          },
-        });
-        if (error) {
-          showToast(error.message, "error");
-          return;
-        }
-        if (data.session) {
-          window.location.href = "/";
-        } else {
-          showToast(t.auth.signupSuccess, "info");
-          setMode("login");
-        }
+        window.location.href = "/";
       }
     } finally {
       setSubmitting(false);
@@ -118,10 +93,10 @@ export default function LoginPage() {
 
         <div className="mb-6">
           <h2 className="text-xl font-bold text-slate-900">
-            {mode === "login" ? t.auth.loginTitle : t.auth.signupTitle}
+            {t.auth.loginTitle}
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            {mode === "login" ? t.auth.loginSubtitle : t.auth.signupSubtitle}
+            {t.auth.loginSubtitle}
           </p>
         </div>
 
@@ -133,25 +108,6 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "signup" && (
-            <div>
-              <Label className="block mb-1.5 text-slate-700">
-                {t.auth.fullName}
-              </Label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                <Input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="สมชาย ผู้ดูแลหอ / Nguyễn Văn A"
-                  className="pl-10 h-11"
-                />
-              </div>
-            </div>
-          )}
-
           <div>
             <Label className="block mb-1.5 text-slate-700">
               {t.auth.email}
@@ -194,19 +150,9 @@ export default function LoginPage() {
             className="w-full shadow-lg shadow-navy-600/20"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {mode === "login" ? t.auth.signIn : t.auth.signUp}
+            {t.auth.signIn}
           </Button>
         </form>
-
-        <div className="mt-5 pt-4 border-t border-slate-100 text-center">
-          <button
-            type="button"
-            onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="text-xs font-medium text-navy-600 hover:text-navy-800 hover:underline"
-          >
-            {mode === "login" ? t.auth.switchToSignup : t.auth.switchToLogin}
-          </button>
-        </div>
       </div>
     </div>
   );

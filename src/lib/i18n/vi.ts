@@ -306,7 +306,7 @@ export const vi: TranslationKeys = {
     active: "Đang hoạt động",
     inactive: "Đã khóa",
     preferredLanguage: "Ngôn ngữ mặc định",
-    createInfo: "Tạo tài khoản mới (yêu cầu cấu hình SUPABASE_SERVICE_ROLE_KEY trong .env.local hoặc nhân viên tự đăng ký tại trang đăng nhập rồi nâng quyền tại đây)",
+    createInfo: "Tạo tài khoản và cấp mật khẩu trực tiếp cho nhân viên tại đây (chỉ dành cho Admin / Super Admin)",
   },
   profile: {
     title: "Hồ sơ cá nhân & Bảo mật",
