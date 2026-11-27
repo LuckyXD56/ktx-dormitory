@@ -262,7 +262,7 @@ export default function GlassyDormPage() {
         entityId: p.id,
         kind: "payment" as const,
         name: p.member?.full_name ?? "-",
-        description: `${p.billing_month} • ${Number(p.amount) - Number(p.paid_amount)} ${lang === "vi" ? "THB" : "บาท"}`,
+        description: `${p.billing_month} • ${new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "th-TH").format(Math.max(0, Number(p.amount) - Number(p.paid_amount)))} ${lang === "vi" ? "VND" : "₫"}`,
         tool: p.member?.room?.room_number ?? "-",
         owner: p.member?.student_code ?? "-",
         status: "Unpaid" as const,

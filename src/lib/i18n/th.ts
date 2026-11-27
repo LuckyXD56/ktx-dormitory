@@ -27,7 +27,7 @@ export const th = {
     building: "อาคาร",
     room: "ห้องพัก",
     member: "สมาชิก",
-    currency: "บาท",
+    currency: "ดอง (VND)",
     printPdf: "พิมพ์ / บันทึก PDF",
     exportExcel: "ดาวน์โหลด Excel (.xlsx)",
     viewDetails: "ดูรายละเอียด",

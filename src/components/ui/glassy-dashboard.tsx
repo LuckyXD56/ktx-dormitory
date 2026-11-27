@@ -1056,11 +1056,11 @@ const usdCompact = new Intl.NumberFormat("en-US", {
   notation: "compact",
   maximumFractionDigits: 1,
 }).format;
-const thb = (value: number) => `฿${number.format(Math.round(value))}`;
+const thb = (value: number) => `${number.format(Math.round(value))} ₫`;
 const thbCompact = (value: number) => {
   const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `฿${(value / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `฿${(value / 1_000).toFixed(1)}k`;
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M ₫`;
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(1)}k ₫`;
   return thb(value);
 };
 
@@ -1204,14 +1204,14 @@ function RevenueChart({
   labels: string[];
   revenue: number[];
   costs: number[];
-  currencySymbol?: "$" | "฿";
+  currencySymbol?: "$" | "₫";
   seriesNames?: [string, string];
 }) {
   const fillId = `revenue-fill-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const [active, setActive] = useState<number | null>(null);
   const plotHeight = 204;
   const width = 600;
-  const formatVal = currencySymbol === "฿" ? thb : usd;
+  const formatVal = currencySymbol === "₫" ? thb : usd;
   const max = Math.max(
     2.5,
     Math.ceil((Math.max(0, ...revenue, ...costs) * 1.14) / 2.5) * 2.5
@@ -1737,7 +1737,7 @@ function CommandView({
         <Panel
           title={vi ? "Tổng thu ký túc xá" : "ยอดเก็บเงินสะสม"}
           className="gd-balance"
-          action={<span className="gd-unit">THB</span>}
+          action={<span className="gd-unit">VND</span>}
         >
           <div className="gd-balance-number">
             <Counter value={dormData.totalCollected} format="thb" />
@@ -2275,8 +2275,8 @@ function AnalyticsView({
             subtitle={
               trend
                 ? vi
-                  ? "So sánh 6 tháng gần nhất (Đơn vị: nghìn THB)"
-                  : "เปรียบเทียบรายรับ 6 เดือนล่าสุด (หน่วยพันบาท)"
+                  ? "So sánh 6 tháng gần nhất (Đơn vị: nghìn VND)"
+                  : "เปรียบเทียบรายรับ 6 เดือนล่าสุด (หน่วยพันดอง)"
                 : vi
                   ? "Số giường đang ở và giường trống theo từng tòa"
                   : "จำนวนผู้พักเทียบกับเตียงว่างแต่ละอาคาร"
@@ -2297,7 +2297,7 @@ function AnalyticsView({
                 labels={monthLabels}
                 revenue={monthCollected}
                 costs={monthBilled}
-                currencySymbol="฿"
+                currencySymbol="₫"
                 seriesNames={[
                   vi ? "Đã thu" : "เก็บได้",
                   vi ? "Hóa đơn" : "เรียกเก็บ",
@@ -2348,7 +2348,7 @@ function AnalyticsView({
                     : "สรุปรายรับค่าห้อง 6 เดือน"}
                 </strong>
                 <small>
-                  {monthLabels[0] ?? "-"} — {monthLabels.at(-1) ?? "-"} · THB
+                  {monthLabels[0] ?? "-"} — {monthLabels.at(-1) ?? "-"} · VND
                 </small>
               </div>
               <button
@@ -3216,7 +3216,7 @@ function GlassyDashboard({
   const downloadReport = () => {
     if (dormData) {
       saveCsv("dorm-trends.csv", [
-        ["Month", "Collected (THB)", "Billed (THB)"],
+        ["Month", "Collected (VND)", "Billed (VND)"],
         ...dormData.monthlySeries.map((m) => [m.label, m.collected, m.billed]),
       ]);
       return;

@@ -29,7 +29,7 @@ export const vi: TranslationKeys = {
     building: "Tòa nhà",
     room: "Phòng",
     member: "Thành viên",
-    currency: "THB",
+    currency: "VND",
     printPdf: "In / Lưu PDF",
     exportExcel: "Tải Excel (.xlsx)",
     viewDetails: "Xem chi tiết",

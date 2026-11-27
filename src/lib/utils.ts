@@ -9,9 +9,9 @@ export function cn(...inputs: ClassValue[]) {
 export function formatCurrency(amount: number, lang: Language = "th"): string {
   const formatted = new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "th-TH", {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount || 0);
-  return `${formatted} ${lang === "vi" ? "THB" : "฿"}`;
+    maximumFractionDigits: 0,
+  }).format(Math.round(amount || 0));
+  return `${formatted} ${lang === "vi" ? "VND" : "₫"}`;
 }
 
 export function formatDate(
