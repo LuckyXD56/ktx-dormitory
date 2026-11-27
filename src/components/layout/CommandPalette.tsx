@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -58,7 +59,9 @@ export function CommandPalette({
   const router = useRouter();
   const { t, lang } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
+  useEffect(() => setMounted(true), []);
   const [activeIndex, setActiveIndex] = useState(0);
   const [indexData, setIndexData] = useState<CommandIndex>(
     () =>
@@ -256,9 +259,9 @@ export function CommandPalette({
     router.push(href);
   };
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="no-print fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh]">
       <div
         className="fixed inset-0 bg-slate-950/55 backdrop-blur-sm"
@@ -349,6 +352,7 @@ export function CommandPalette({
           <span>Esc {lang === "vi" ? "Đóng" : "ปิด"}</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

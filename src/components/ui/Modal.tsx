@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useId } from "react";
+import React, { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface ModalProps {
@@ -31,6 +32,11 @@ export function Modal({
   role = "dialog",
 }: ModalProps) {
   const titleId = useId();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -46,9 +52,9 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="no-print fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div
         className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
@@ -80,6 +86,7 @@ export function Modal({
         </div>
         <div className="overflow-y-auto px-5 py-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
