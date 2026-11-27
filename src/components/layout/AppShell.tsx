@@ -106,6 +106,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       "/violations",
       "/announcements",
       "/reports",
+      "/profile",
+      "/settings",
       "/glassy-demo",
     ];
     const timer = window.setTimeout(() => {
@@ -356,15 +358,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const systemNav = useMemo(
     () => [
       {
+        href: "/profile",
+        label: t.nav.profile,
+        icon: UserSquare,
+        badge: null as string | null,
+      },
+      {
         href: "/users",
         label: t.nav.users,
-        icon: UserSquare,
+        icon: SecuritySafe,
+        badge: null as string | null,
+      },
+      {
+        href: "/settings",
+        label: t.nav.settings,
+        icon: Setting2,
         badge: null as string | null,
       },
       {
         href: "/glassy-demo",
         label: t.nav.glassyView,
-        icon: Setting2,
+        icon: Crown,
         badge: "Pro",
       },
     ],
@@ -595,9 +609,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </span>
               </div>
               <Link
-                href="/users"
+                href="/profile"
                 className="text-slate-400 hover:text-slate-700 p-1"
-                title={t.nav.users}
+                title={t.nav.profile}
               >
                 <Setting2 className="size-4" />
               </Link>

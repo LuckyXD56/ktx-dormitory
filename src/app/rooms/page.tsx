@@ -19,13 +19,18 @@ import {
   Wrench,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { BuildingSummaryStrip } from "@/components/rooms/BuildingSummaryStrip";
+import { RoomCardsGrid } from "@/components/rooms/RoomCardsGrid";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { listBuildings, listMembers, listRooms } from "@/services";
 import {
   emitAlertsRefresh,
   getCached,
@@ -72,6 +77,7 @@ export default function RoomsPage() {
 
   // Preset 3x5 setup loading
   const [runningPreset, setRunningPreset] = useState(false);
+  const [presetConfirmOpen, setPresetConfirmOpen] = useState(false);
 
   // Add Floor Modal
   const [addFloorOpen, setAddFloorOpen] = useState(false);
@@ -147,23 +153,22 @@ export default function RoomsPage() {
     }
     if (!initialCache) setLoading(true);
     try {
-      const [bRes, rRes, mRes] = await Promise.all([
-        supabase.from("buildings").select("*").order("code"),
-        supabase
-          .from("rooms")
-          .select("*, building:buildings(*)")
-          .order("room_number"),
-        supabase.from("members").select("*").order("full_name"),
+      const [bData, rData, mData] = await Promise.all([
+        listBuildings(),
+        listRooms(),
+        listMembers({ orderBy: "full_name", ascending: true }),
       ]);
       const payload: RoomsCachePayload = {
-        buildings: (bRes.data as Building[]) ?? [],
-        rooms: (rRes.data as Room[]) ?? [],
-        members: (mRes.data as Member[]) ?? [],
+        buildings: bData,
+        rooms: rData,
+        members: mData,
       };
       setBuildings(payload.buildings);
       setRooms(payload.rooms);
       setMembers(payload.members);
       setCached("rooms_page", payload);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setLoading(false);
     }
@@ -338,7 +343,7 @@ export default function RoomsPage() {
 
   // 1-Click 3 Buildings x 5 Floors Preset Setup
   const handlePreset3x5 = async () => {
-    if (!window.confirm(t.rooms.preset3x5Confirm)) return;
+    setPresetConfirmOpen(false);
     const supabase = createClient();
     if (!supabase) return;
     setRunningPreset(true);
@@ -877,166 +882,84 @@ export default function RoomsPage() {
     <AppShell>
       <div className="space-y-5">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              {t.rooms.title}
-            </h1>
-            <p className="text-sm text-slate-500 mt-0.5">{t.rooms.subtitle}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={runningPreset}
-              onClick={handlePreset3x5}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs sm:text-sm font-semibold text-indigo-800 hover:bg-indigo-100 disabled:opacity-50"
-            >
-              {runningPreset ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              {t.rooms.preset3x5}
-            </button>
-            <button
-              type="button"
-              onClick={openAddBuilding}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <Building2 className="h-4 w-4 text-navy-600" />
-              {t.rooms.addBuilding}
-            </button>
-            <button
-              type="button"
-              onClick={() => openAddFloorModal()}
-              disabled={buildings.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs sm:text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-              {t.rooms.addFloor}
-            </button>
-            <button
-              type="button"
-              onClick={openBulkAdd}
-              disabled={buildings.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-navy-200 bg-navy-50 px-3.5 py-2 text-xs sm:text-sm font-semibold text-navy-800 hover:bg-navy-100 disabled:opacity-50"
-            >
-              <Layers className="h-4 w-4" />
-              {t.rooms.bulkAddRooms}
-            </button>
-            <button
-              type="button"
-              onClick={() => openAddRoom()}
-              disabled={buildings.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-navy-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-              {t.rooms.addRoom}
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          title={t.rooms.title}
+          subtitle={t.rooms.subtitle}
+          actions={
+            <>
+              <button
+                type="button"
+                disabled={runningPreset}
+                onClick={() => setPresetConfirmOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs sm:text-sm font-semibold text-indigo-800 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+              >
+                {runningPreset ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {t.rooms.preset3x5}
+              </button>
+              <button
+                type="button"
+                onClick={openAddBuilding}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Building2 className="h-4 w-4 text-navy-600" />
+                {t.rooms.addBuilding}
+              </button>
+              <button
+                type="button"
+                onClick={() => openAddFloorModal()}
+                disabled={buildings.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs sm:text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                {t.rooms.addFloor}
+              </button>
+              <button
+                type="button"
+                onClick={openBulkAdd}
+                disabled={buildings.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-navy-200 bg-navy-50 px-3.5 py-2 text-xs sm:text-sm font-semibold text-navy-800 hover:bg-navy-100 disabled:opacity-50 transition-colors"
+              >
+                <Layers className="h-4 w-4" />
+                {t.rooms.bulkAddRooms}
+              </button>
+              <button
+                type="button"
+                onClick={() => openAddRoom()}
+                disabled={buildings.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-navy-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-navy-700 disabled:opacity-50 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                {t.rooms.addRoom}
+              </button>
+            </>
+          }
+        />
 
         {/* Buildings Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedBuilding("all");
-              setSelectedFloor("all");
-            }}
-            className={`rounded-2xl border p-4 text-left transition-all ${
-              selectedBuilding === "all"
-                ? "border-navy-600 bg-gradient-to-br from-navy-700 to-navy-900 text-white shadow-md"
-                : "border-slate-200 bg-white text-slate-800 hover:border-navy-200"
-            }`}
-          >
-            <p className="text-xs font-semibold opacity-80">{t.common.all}</p>
-            <p className="text-lg font-bold mt-1">
-              {buildings.length} {t.common.building} • {rooms.length}{" "}
-              {t.common.room}
-            </p>
-            <p className="text-xs opacity-75 mt-1">
-              {members.filter((m) => m.status === "active").length}{" "}
-              {t.dashboard.activeResidents}
-            </p>
-          </button>
-
-          {buildings.map((b) => {
-            const bRooms = rooms.filter((r) => r.building_id === b.id);
-            const totalCap = bRooms.reduce((s, r) => s + r.capacity, 0);
-            const occCount = bRooms.reduce(
-              (s, r) => s + (membersByRoom.get(r.id) ?? []).length,
-              0
-            );
-            const active = selectedBuilding === b.id;
-            const pct = totalCap > 0 ? Math.round((occCount / totalCap) * 100) : 0;
-
-            return (
-              <div
-                key={b.id}
-                onClick={() => {
-                  setSelectedBuilding(b.id);
-                  setSelectedFloor("all");
-                }}
-                className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                  active
-                    ? "border-navy-600 bg-navy-950 text-white shadow-md"
-                    : "border-slate-200 bg-white text-slate-800 hover:border-navy-300"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <span className="text-[11px] font-bold uppercase tracking-wider opacity-75">
-                      {b.code} • {b.total_floors} {t.rooms.floor}
-                    </span>
-                    <p className="text-sm font-bold leading-snug truncate">
-                      {b.name}
-                    </p>
-                  </div>
-                  <div
-                    className="flex items-center gap-1 shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => openEditBuilding(b)}
-                      className="rounded-lg p-1 opacity-70 hover:opacity-100 hover:bg-white/10"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setDeleteTarget({ type: "building", id: b.id })
-                      }
-                      className="rounded-lg p-1 opacity-70 hover:opacity-100 hover:text-rose-400"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-2.5">
-                  <div className="flex justify-between text-[11px] opacity-80 mb-1">
-                    <span>
-                      {bRooms.length} {t.common.room}
-                    </span>
-                    <span>
-                      {occCount}/{totalCap} ({pct}%)
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-slate-200/30 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${
-                        active ? "bg-blue-400" : "bg-navy-600"
-                      }`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <BuildingSummaryStrip
+          buildings={buildings}
+          rooms={rooms}
+          members={members}
+          membersByRoom={membersByRoom}
+          selectedBuilding={selectedBuilding}
+          onSelectBuilding={(id) => {
+            setSelectedBuilding(id);
+            setSelectedFloor("all");
+          }}
+          onEditBuilding={openEditBuilding}
+          onDeleteBuilding={(id) => setDeleteTarget({ type: "building", id })}
+          labels={{
+            all: t.common.all,
+            building: t.common.building,
+            room: t.common.room,
+            floor: t.rooms.floor,
+            activeResidents: t.dashboard.activeResidents,
+          }}
+        />
 
         {/* Floor Tabs + View Mode Toggle */}
         <div className="rounded-2xl border border-slate-200 bg-white p-3.5 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -1144,320 +1067,60 @@ export default function RoomsPage() {
             </div>
           </div>
         ) : roomsGroupedByFloor.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center space-y-3">
-            <p className="text-sm text-slate-500">{t.common.noData}</p>
-            {buildings.length === 0 && (
-              <button
-                type="button"
-                disabled={runningPreset}
-                onClick={handlePreset3x5}
-                className="inline-flex items-center gap-2 rounded-xl bg-navy-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy-700"
-              >
-                <Sparkles className="h-4 w-4" />
-                {t.rooms.preset3x5}
-              </button>
-            )}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-2xs">
+            <EmptyState
+              icon={<Building2 className="h-6 w-6" />}
+              title={t.common.noData}
+              action={
+                buildings.length === 0 ? (
+                  <button
+                    type="button"
+                    disabled={runningPreset}
+                    onClick={() => setPresetConfirmOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-navy-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-navy-700"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {t.rooms.preset3x5}
+                  </button>
+                ) : undefined
+              }
+            />
           </div>
         ) : (
-          <div className="space-y-5">
-            {roomsGroupedByFloor.map(([floorNum, floorRooms]) => {
-              const floorCap = floorRooms.reduce((s, r) => s + r.capacity, 0);
-              const floorOcc = floorRooms.reduce(
-                (s, r) => s + (membersByRoom.get(r.id) ?? []).length,
-                0
-              );
-              const floorFree = Math.max(0, floorCap - floorOcc);
-
-              return (
-                <div key={floorNum} className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 shadow-2xs">
-                    <div className="flex items-center gap-2.5">
-                      <span className="inline-flex items-center rounded-lg bg-navy-900 px-2.5 py-1 text-xs font-bold text-white">
-                        {t.rooms.floor} {floorNum}
-                      </span>
-                      <span className="text-xs font-medium text-slate-600">
-                        {floorRooms.length} {t.common.room} •{" "}
-                        {t.rooms.occupants} {floorOcc}/{floorCap} •{" "}
-                        <strong className="text-emerald-700">
-                          {t.rooms.bedsAvailable.replace(
-                            "{n}",
-                            String(floorFree)
-                          )}
-                        </strong>
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => openAddRoom(floorNum)}
-                      className="inline-flex items-center gap-1 rounded-lg bg-navy-50 border border-navy-200 px-2.5 py-1 text-xs font-semibold text-navy-700 hover:bg-navy-100"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      {t.rooms.addRoomOnFloor}
-                    </button>
-                  </div>
-
-                  {viewMode === "compact" ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
-                      {floorRooms.map((room) => {
-                        const occupants = membersByRoom.get(room.id) ?? [];
-                        const freeBeds = Math.max(
-                          0,
-                          room.capacity - occupants.length
-                        );
-                        const isMaint = room.status === "maintenance";
-                        const isFull = !isMaint && freeBeds === 0;
-
-                        return (
-                          <button
-                            key={room.id}
-                            type="button"
-                            onClick={() => setInspectRoomId(room.id)}
-                            className={`text-left rounded-2xl border p-3.5 transition-all hover:shadow-md ${
-                              isMaint
-                                ? "border-slate-200 bg-slate-100/80 text-slate-600"
-                                : isFull
-                                ? "border-rose-200 bg-rose-50/50 hover:border-rose-300"
-                                : "border-emerald-200 bg-white hover:border-navy-400"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-base font-bold text-slate-900">
-                                {room.room_number}
-                              </span>
-                              <span
-                                className={`h-2.5 w-2.5 rounded-full ${
-                                  isMaint
-                                    ? "bg-slate-400"
-                                    : isFull
-                                    ? "bg-rose-500"
-                                    : "bg-emerald-500"
-                                }`}
-                              />
-                            </div>
-                            <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                              {room.building?.code ?? ""} •{" "}
-                              {formatCurrency(Number(room.monthly_fee), lang)}
-                            </p>
-                            <div className="mt-2.5 flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-800">
-                                {occupants.length}/{room.capacity}
-                              </span>
-                              <div className="flex -space-x-1.5">
-                                {occupants.slice(0, 3).map((m) => (
-                                  <span
-                                    key={m.id}
-                                    className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-navy-600 text-[9px] font-bold text-white ring-2 ring-white"
-                                  >
-                                    {getInitials(m.full_name)}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {floorRooms.map((room) => {
-                        const occupants = membersByRoom.get(room.id) ?? [];
-                        const freeBeds = Math.max(
-                          0,
-                          room.capacity - occupants.length
-                        );
-                        const isMaint = room.status === "maintenance";
-                        const isFull = !isMaint && freeBeds === 0;
-
-                        return (
-                          <div
-                            key={room.id}
-                            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col justify-between gap-4"
-                          >
-                            <div>
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy-50 text-navy-700 font-bold text-sm">
-                                    {room.room_number}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-bold text-slate-900">
-                                      {room.building?.name ??
-                                        room.building?.code}{" "}
-                                      • {t.common.room} {room.room_number}
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      {t.rooms.floor} {room.floor} •{" "}
-                                      {formatCurrency(
-                                        Number(room.monthly_fee),
-                                        lang
-                                      )}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <Badge
-                                  variant={
-                                    isMaint
-                                      ? "slate"
-                                      : isFull
-                                      ? "rose"
-                                      : "emerald"
-                                  }
-                                >
-                                  {isMaint
-                                    ? t.rooms.statusMaintenance
-                                    : isFull
-                                    ? t.rooms.statusFull
-                                    : t.rooms.bedsAvailable.replace(
-                                        "{n}",
-                                        String(freeBeds)
-                                      )}
-                                </Badge>
-                              </div>
-
-                              <div className="mt-3">
-                                <div className="flex justify-between text-xs text-slate-500 mb-1">
-                                  <span className="inline-flex items-center gap-1">
-                                    <BedDouble className="h-3.5 w-3.5" />
-                                    {t.rooms.occupants}
-                                  </span>
-                                  <span className="font-semibold text-slate-800">
-                                    {occupants.length} / {room.capacity}
-                                  </span>
-                                </div>
-                                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full transition-all ${
-                                      isFull ? "bg-rose-500" : "bg-navy-600"
-                                    }`}
-                                    style={{
-                                      width: `${Math.min(
-                                        100,
-                                        (occupants.length /
-                                          Math.max(1, room.capacity)) *
-                                          100
-                                      )}%`,
-                                    }}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="mt-4 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                                    <Users className="h-3.5 w-3.5" />
-                                    {t.rooms.membersInRoom}
-                                  </p>
-                                  {!isMaint && freeBeds > 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => openAssignModal(room)}
-                                      className="inline-flex items-center gap-1 rounded-lg bg-navy-50 px-2 py-1 text-[11px] font-semibold text-navy-700 hover:bg-navy-100"
-                                    >
-                                      <UserPlus className="h-3 w-3" />
-                                      {t.rooms.assignMember}
-                                    </button>
-                                  )}
-                                </div>
-
-                                {occupants.length === 0 ? (
-                                  <p className="text-xs text-slate-400 italic py-1">
-                                    {t.rooms.emptyRoom}
-                                  </p>
-                                ) : (
-                                  <div className="space-y-1.5">
-                                    {occupants.map((m) => (
-                                      <div
-                                        key={m.id}
-                                        className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-2.5 py-1.5 border border-slate-100"
-                                      >
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <div className="h-6 w-6 rounded-full bg-navy-100 text-navy-800 text-[10px] font-bold flex items-center justify-center shrink-0">
-                                            {getInitials(m.full_name)}
-                                          </div>
-                                          <div className="min-w-0">
-                                            <p className="text-xs font-semibold text-slate-800 truncate">
-                                              {m.full_name}
-                                            </p>
-                                            <p className="text-[10px] text-slate-400">
-                                              {m.student_code}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setTransferMember(m);
-                                              setTargetRoomId("");
-                                            }}
-                                            className="inline-flex items-center gap-1 rounded-lg bg-white border border-slate-200 px-2 py-1 text-[10px] font-semibold text-navy-700 hover:bg-navy-50"
-                                            title={t.rooms.transferMember}
-                                          >
-                                            <ArrowRightLeft className="h-3 w-3" />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              handleRemoveFromRoom(m)
-                                            }
-                                            className="inline-flex items-center gap-1 rounded-lg bg-white border border-rose-200 px-2 py-1 text-[10px] font-semibold text-rose-600 hover:bg-rose-50"
-                                            title={t.rooms.removeFromRoom}
-                                          >
-                                            <UserMinus className="h-3 w-3" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-1 pt-2 border-t border-slate-100">
-                              <button
-                                type="button"
-                                onClick={() => toggleRoomMaintenance(room)}
-                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                              >
-                                <Wrench className="h-3.5 w-3.5" />
-                                {isMaint
-                                  ? t.rooms.statusAvailable
-                                  : t.rooms.statusMaintenance}
-                              </button>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => openEditRoom(room)}
-                                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                  {t.common.edit}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setDeleteTarget({
-                                      type: "room",
-                                      id: room.id,
-                                    })
-                                  }
-                                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  {t.common.delete}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <RoomCardsGrid
+            roomsGroupedByFloor={roomsGroupedByFloor}
+            membersByRoom={membersByRoom}
+            viewMode={viewMode}
+            lang={lang}
+            onInspectRoom={(roomId) => setInspectRoomId(roomId)}
+            onAddRoomOnFloor={(fl) => openAddRoom(fl)}
+            onOpenAssignModal={openAssignModal}
+            onTransferMember={(m) => {
+              setTransferMember(m);
+              setTargetRoomId("");
+            }}
+            onRemoveFromRoom={handleRemoveFromRoom}
+            onToggleMaintenance={toggleRoomMaintenance}
+            onEditRoom={openEditRoom}
+            onDeleteRoom={(id) => setDeleteTarget({ type: "room", id })}
+            labels={{
+              floor: t.rooms.floor,
+              room: t.common.room,
+              occupants: t.rooms.occupants,
+              bedsAvailable: t.rooms.bedsAvailable,
+              addRoomOnFloor: t.rooms.addRoomOnFloor,
+              statusMaintenance: t.rooms.statusMaintenance,
+              statusAvailable: t.rooms.statusAvailable,
+              statusFull: t.rooms.statusFull,
+              membersInRoom: t.rooms.membersInRoom,
+              assignMember: t.rooms.assignMember,
+              emptyRoom: t.rooms.emptyRoom,
+              transferMember: t.rooms.transferMember,
+              removeFromRoom: t.rooms.removeFromRoom,
+              edit: t.common.edit,
+              delete: t.common.delete,
+            }}
+          />
         )}
       </div>
 
@@ -2248,6 +1911,16 @@ export default function RoomsPage() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
         loading={deleting}
+      />
+
+      <ConfirmDialog
+        open={presetConfirmOpen}
+        onClose={() => setPresetConfirmOpen(false)}
+        onConfirm={handlePreset3x5}
+        loading={runningPreset}
+        title={t.rooms.preset3x5}
+        description={t.rooms.preset3x5Confirm}
+        confirmLabel={t.common.confirm}
       />
     </AppShell>
   );

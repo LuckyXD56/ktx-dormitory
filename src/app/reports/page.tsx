@@ -1,11 +1,20 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, FileSpreadsheet, Loader2, Printer } from "lucide-react";
+import { Download, FileSpreadsheet, Printer } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AppShell } from "@/components/layout/AppShell";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Select } from "@/components/ui/select";
+import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { fetchReportsDataset } from "@/services";
 import {
   getCached,
   isCacheFresh,
@@ -30,6 +39,7 @@ type ReportType =
 
 export default function ReportsPage() {
   const { t, lang } = useI18n();
+  const { showToast } = useToast();
   const [reportType, setReportType] = useState<ReportType>("all_members");
   const [buildingFilter, setBuildingFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -67,43 +77,19 @@ export default function ReportsPage() {
     }
     if (!getCached("reports_page")) setLoading(true);
     try {
-      const [bRes, mRes, pRes, aRes, vRes] = await Promise.all([
-        supabase.from("buildings").select("*").order("code"),
-        supabase
-          .from("members")
-          .select("*, room:rooms(*, building:buildings(*))")
-          .order("student_code"),
-        supabase
-          .from("payments")
-          .select("*, member:members(*, room:rooms(*, building:buildings(*)))")
-          .order("billing_month", { ascending: false }),
-        supabase
-          .from("attendance_logs")
-          .select("*, member:members(*, room:rooms(*, building:buildings(*)))")
-          .order("recorded_at", { ascending: false })
-          .limit(500),
-        supabase
-          .from("violations")
-          .select("*, member:members(*, room:rooms(*, building:buildings(*)))")
-          .order("occurred_at", { ascending: false }),
-      ]);
-
-      const payload = {
-        buildings: (bRes.data as Building[]) ?? [],
-        members: (mRes.data as Member[]) ?? [],
-        payments: (pRes.data as Payment[]) ?? [],
-        attendance: (aRes.data as AttendanceLog[]) ?? [],
-        violations: (vRes.data as Violation[]) ?? [],
-      };
+      const payload = await fetchReportsDataset();
       setBuildings(payload.buildings);
       setMembers(payload.members);
       setPayments(payload.payments);
       setAttendance(payload.attendance);
       setViolations(payload.violations);
       setCached("reports_page", payload);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -286,110 +272,116 @@ export default function ReportsPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="no-print flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {t.reports.title}
-            </h1>
-            <p className="text-sm text-slate-500 mt-0.5">{t.reports.subtitle}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={reportData.length === 0}
-              onClick={handleExportExcel}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              {t.common.exportExcel}
-            </button>
-            <button
-              type="button"
-              disabled={reportData.length === 0}
-              onClick={handleExportCsv}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-            >
-              <Download className="h-4 w-4" />
-              CSV
-            </button>
-            <button
-              type="button"
-              disabled={reportData.length === 0}
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 rounded-xl bg-navy-600 px-4 py-2 text-sm font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
-            >
-              <Printer className="h-4 w-4" />
-              {t.common.printPdf}
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          className="no-print"
+          title={t.reports.title}
+          subtitle={t.reports.subtitle}
+          actions={
+            <>
+              <Button
+                type="button"
+                disabled={reportData.length === 0}
+                onClick={handleExportExcel}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                {t.common.exportExcel}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={reportData.length === 0}
+                onClick={handleExportCsv}
+              >
+                <Download className="h-4 w-4" />
+                CSV
+              </Button>
+              <Button
+                type="button"
+                disabled={reportData.length === 0}
+                onClick={() => window.print()}
+              >
+                <Printer className="h-4 w-4" />
+                {t.common.printPdf}
+              </Button>
+            </>
+          }
+        />
 
         {/* Report Selector & Filters */}
-        <div className="no-print rounded-2xl border border-slate-200 bg-white p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
-              {t.reports.selectReport}
-            </label>
-            <select
-              value={reportType}
-              onChange={(e) => setReportType(e.target.value as ReportType)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            >
-              <option value="all_members">{t.reports.repAllMembers}</option>
-              <option value="by_building_room">
-                {t.reports.repByBuildingRoom}
-              </option>
-              <option value="payments">{t.reports.repPayments}</option>
-              <option value="attendance">{t.reports.repAttendance}</option>
-              <option value="violations">{t.reports.repViolations}</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
-              {t.common.building}
-            </label>
-            <select
-              value={buildingFilter}
-              onChange={(e) => setBuildingFilter(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            >
-              <option value="all">{t.common.all}</option>
-              {buildings.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
+        <FilterBar
+          hasActiveFilters={
+            buildingFilter !== "all" || Boolean(dateFrom) || Boolean(dateTo)
+          }
+          onReset={() => {
+            setBuildingFilter("all");
+            setDateFrom("");
+            setDateTo("");
+          }}
+          resetLabel={t.common.reset}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                {t.reports.selectReport}
+              </label>
+              <Select
+                value={reportType}
+                onChange={(e) => setReportType(e.target.value as ReportType)}
+              >
+                <option value="all_members">{t.reports.repAllMembers}</option>
+                <option value="by_building_room">
+                  {t.reports.repByBuildingRoom}
                 </option>
-              ))}
-            </select>
-          </div>
+                <option value="payments">{t.reports.repPayments}</option>
+                <option value="attendance">{t.reports.repAttendance}</option>
+                <option value="violations">{t.reports.repViolations}</option>
+              </Select>
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
-              {t.reports.dateFrom}
-            </label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                {t.common.building}
+              </label>
+              <Select
+                value={buildingFilter}
+                onChange={(e) => setBuildingFilter(e.target.value)}
+              >
+                <option value="all">{t.common.all}</option>
+                {buildings.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
-              {t.reports.dateTo}
-            </label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                {t.reports.dateFrom}
+              </label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                {t.reports.dateTo}
+              </label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+            </div>
           </div>
-        </div>
+        </FilterBar>
 
         {/* Printable Report Preview */}
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden print:border-0 print:shadow-none">
+        <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden print:border-0 print:shadow-none">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-900">
@@ -402,14 +394,12 @@ export default function ReportsPage() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16 gap-2 text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin text-navy-600" />
-              <span className="text-sm">{t.common.loading}</span>
-            </div>
+            <TableSkeleton rows={6} cols={5} />
           ) : reportData.length === 0 ? (
-            <div className="py-16 text-center text-sm text-slate-400">
-              {t.common.noData}
-            </div>
+            <EmptyState
+              icon={<FileSpreadsheet className="h-6 w-6" />}
+              title={t.common.noData}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">

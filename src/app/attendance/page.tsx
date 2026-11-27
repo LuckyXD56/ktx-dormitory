@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  ClipboardCheck,
   Clock,
   Loader2,
   LogIn,
@@ -15,12 +16,20 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Select } from "@/components/ui/select";
+import { CardGridSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { listAttendanceLogs, listBuildings, listMembers } from "@/services";
 import {
   emitAlertsRefresh,
   getCached,
@@ -62,6 +71,7 @@ export default function AttendancePage() {
     null
   );
   const [batchCheckingIn, setBatchCheckingIn] = useState(false);
+  const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
 
   // Manual modal
   const [manualOpen, setManualOpen] = useState(false);
@@ -83,33 +93,26 @@ export default function AttendancePage() {
     }
     if (!getCached("attendance_page")) setLoading(true);
     try {
-      const [mRes, bRes, lRes] = await Promise.all([
-        supabase
-          .from("members")
-          .select("*, room:rooms(*, building:buildings(*))")
-          .eq("status", "active")
-          .order("full_name"),
-        supabase.from("buildings").select("*").order("code"),
-        supabase
-          .from("attendance_logs")
-          .select(
-            "*, member:members(*, room:rooms(*, building:buildings(*))), recorder:profiles(id, full_name, role)"
-          )
-          .order("recorded_at", { ascending: false })
-          .limit(300),
+      const [mData, bData, lData] = await Promise.all([
+        listMembers({ statuses: ["active"], orderBy: "full_name", ascending: true }),
+        listBuildings(),
+        listAttendanceLogs(300),
       ]);
       const payload = {
-        members: (mRes.data as Member[]) ?? [],
-        buildings: (bRes.data as Building[]) ?? [],
-        logs: (lRes.data as AttendanceLog[]) ?? [],
+        members: mData,
+        buildings: bData,
+        logs: lData,
       };
       setMembers(payload.members);
       setBuildings(payload.buildings);
       setLogs(payload.logs);
       setCached("attendance_page", payload);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [filtersReady, setFiltersReady] = useState(false);
@@ -326,12 +329,8 @@ export default function AttendancePage() {
   };
 
   const handleBatchCheckInAll = async () => {
+    setBatchConfirmOpen(false);
     if (notReturnedMembers.length === 0) return;
-    const msg =
-      lang === "vi"
-        ? `Xác nhận điểm danh về KTX cho tất cả ${notReturnedMembers.length} thành viên chưa về?`
-        : `ยืนยันเช็กชื่อกลับเข้าหอพร้อมกันทั้งหมด ${notReturnedMembers.length} คน?`;
-    if (!window.confirm(msg)) return;
     const supabase = createClient();
     if (!supabase || !user) return;
     setBatchCheckingIn(true);
@@ -376,24 +375,16 @@ export default function AttendancePage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {t.attendance.title}
-            </h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {t.attendance.subtitle}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={openManualModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-700"
-          >
-            <Plus className="h-4 w-4" />
-            {t.attendance.recordManual}
-          </button>
-        </div>
+        <PageHeader
+          title={t.attendance.title}
+          subtitle={t.attendance.subtitle}
+          actions={
+            <Button type="button" onClick={openManualModal}>
+              <Plus className="h-4 w-4" />
+              {t.attendance.recordManual}
+            </Button>
+          }
+        />
 
         {/* Who Hasn't Returned Alert Box */}
         <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4 sm:p-5">
@@ -405,11 +396,12 @@ export default function AttendancePage() {
               </h2>
             </div>
             {notReturnedMembers.length > 1 && (
-              <button
+              <Button
                 type="button"
+                size="sm"
                 disabled={batchCheckingIn}
-                onClick={handleBatchCheckInAll}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                onClick={() => setBatchConfirmOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700"
               >
                 {batchCheckingIn ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -419,7 +411,7 @@ export default function AttendancePage() {
                 {lang === "vi"
                   ? `Điểm danh về hết (${notReturnedMembers.length})`
                   : `เช็กเข้าหอทั้งหมด (${notReturnedMembers.length})`}
-              </button>
+              </Button>
             )}
           </div>
 
@@ -435,7 +427,7 @@ export default function AttendancePage() {
                 return (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between gap-2 rounded-xl bg-white border border-rose-200 p-3 shadow-xs"
+                    className="flex items-center justify-between gap-2 rounded-xl bg-white border border-rose-200 p-3 shadow-2xs"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-900 truncate">
@@ -453,7 +445,7 @@ export default function AttendancePage() {
                       type="button"
                       disabled={submittingMemberId === m.id}
                       onClick={() => quickRecord(m.id, "check_in")}
-                      className="shrink-0 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                      className="shrink-0 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                     >
                       {t.attendance.checkIn}
                     </button>
@@ -465,60 +457,73 @@ export default function AttendancePage() {
         </div>
 
         {/* Search & Filter */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t.members.searchPlaceholder}
-              className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-sm focus:border-navy-600 focus:outline-none"
-            />
-          </div>
-          <select
-            value={buildingFilter}
-            onChange={(e) => setBuildingFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          >
-            <option value="all">
-              {t.common.building}: {t.common.all}
-            </option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
+        <FilterBar
+          hasActiveFilters={
+            Boolean(search.trim()) ||
+            buildingFilter !== "all" ||
+            typeFilter !== "all"
+          }
+          onReset={() => {
+            setSearch("");
+            setBuildingFilter("all");
+            setTypeFilter("all");
+          }}
+          resetLabel={t.common.reset}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <Input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t.members.searchPlaceholder}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={buildingFilter}
+              onChange={(e) => setBuildingFilter(e.target.value)}
+            >
+              <option value="all">
+                {t.common.building}: {t.common.all}
               </option>
-            ))}
-          </select>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          >
-            <option value="all">
-              {t.common.status}: {t.common.all}
-            </option>
-            <option value="check_in">{t.attendance.checkIn}</option>
-            <option value="check_out">{t.attendance.checkOut}</option>
-            <option value="late">{t.attendance.late}</option>
-            <option value="absent">{t.attendance.absent}</option>
-          </select>
-        </div>
+              {buildings.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="all">
+                {t.common.status}: {t.common.all}
+              </option>
+              <option value="check_in">{t.attendance.checkIn}</option>
+              <option value="check_out">{t.attendance.checkOut}</option>
+              <option value="late">{t.attendance.late}</option>
+              <option value="absent">{t.attendance.absent}</option>
+            </Select>
+          </div>
+        </FilterBar>
 
         {/* Quick Roll-Call Grid */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-2xs">
           <h2 className="text-base font-bold text-slate-900 mb-3">
             {t.attendance.quickRollCall}
           </h2>
           {loading ? (
-            <div className="flex items-center justify-center py-10 gap-2 text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin text-navy-600" />
-              <span className="text-sm">{t.common.loading}</span>
-            </div>
+            <CardGridSkeleton
+              count={4}
+              columnsClass="grid-cols-1 md:grid-cols-2"
+            />
           ) : filteredMembers.length === 0 ? (
-            <p className="text-sm text-slate-400 py-6 text-center">
-              {t.common.noData}
-            </p>
+            <EmptyState
+              icon={<ClipboardCheck className="h-6 w-6" />}
+              title={t.common.noData}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {filteredMembers.map((m) => {
@@ -760,6 +765,20 @@ export default function AttendancePage() {
         onClose={() => setDeletingId(null)}
         onConfirm={handleDeleteLog}
         loading={deleting}
+      />
+
+      <ConfirmDialog
+        open={batchConfirmOpen}
+        onClose={() => setBatchConfirmOpen(false)}
+        onConfirm={handleBatchCheckInAll}
+        loading={batchCheckingIn}
+        tone="primary"
+        title={t.attendance.quickRollCall}
+        description={
+          lang === "vi"
+            ? `Xác nhận điểm danh về KTX cho tất cả ${notReturnedMembers.length} thành viên chưa về?`
+            : `ยืนยันเช็กชื่อกลับเข้าหอพร้อมกันทั้งหมด ${notReturnedMembers.length} คน?`
+        }
       />
     </AppShell>
   );

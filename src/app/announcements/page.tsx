@@ -1,15 +1,20 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Edit2, Loader2, Megaphone, Pin, Plus, Trash2 } from "lucide-react";
+import { Edit2, Megaphone, Pin, Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { CardGridSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { listAnnouncements, listBuildings, listRooms } from "@/services";
 import {
   emitAlertsRefresh,
   getCached,
@@ -72,32 +77,26 @@ export default function AnnouncementsPage() {
     }
     if (!getCached("announcements_page")) setLoading(true);
     try {
-      const [aRes, bRes, rRes] = await Promise.all([
-        supabase
-          .from("announcements")
-          .select(
-            "*, building:buildings(*), room:rooms(*), author:profiles(id, full_name, role)"
-          )
-          .order("is_pinned", { ascending: false })
-          .order("published_at", { ascending: false }),
-        supabase.from("buildings").select("*").order("code"),
-        supabase
-          .from("rooms")
-          .select("*, building:buildings(*)")
-          .order("room_number"),
+      const [aData, bData, rData] = await Promise.all([
+        listAnnouncements(),
+        listBuildings(),
+        listRooms(),
       ]);
       const payload = {
-        announcements: (aRes.data as Announcement[]) ?? [],
-        buildings: (bRes.data as Building[]) ?? [],
-        rooms: (rRes.data as Room[]) ?? [],
+        announcements: aData,
+        buildings: bData,
+        rooms: rData,
       };
       setAnnouncements(payload.announcements);
       setBuildings(payload.buildings);
       setRooms(payload.rooms);
       setCached("announcements_page", payload);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -223,24 +222,16 @@ export default function AnnouncementsPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {t.announcements.title}
-            </h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {t.announcements.subtitle}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={openAdd}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-700"
-          >
-            <Plus className="h-4 w-4" />
-            {t.announcements.addAnnouncement}
-          </button>
-        </div>
+        <PageHeader
+          title={t.announcements.title}
+          subtitle={t.announcements.subtitle}
+          actions={
+            <Button type="button" onClick={openAdd}>
+              <Plus className="h-4 w-4" />
+              {t.announcements.addAnnouncement}
+            </Button>
+          }
+        />
 
         {/* Category Filter */}
         <div className="flex flex-wrap gap-2">
@@ -261,7 +252,7 @@ export default function AnnouncementsPage() {
               onClick={() => setCatFilter(cat)}
               className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                 catFilter === cat
-                  ? "bg-navy-600 text-white"
+                  ? "bg-navy-600 text-white shadow-xs"
                   : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -271,13 +262,19 @@ export default function AnnouncementsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 gap-2 text-slate-500">
-            <Loader2 className="h-5 w-5 animate-spin text-navy-600" />
-            <span className="text-sm">{t.common.loading}</span>
-          </div>
+          <CardGridSkeleton count={3} columnsClass="grid-cols-1" />
         ) : visible.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-400">
-            {t.common.noData}
+          <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs">
+            <EmptyState
+              icon={<Megaphone className="h-6 w-6" />}
+              title={t.common.noData}
+              action={
+                <Button type="button" size="sm" onClick={openAdd}>
+                  <Plus className="h-4 w-4" />
+                  {t.announcements.addAnnouncement}
+                </Button>
+              }
+            />
           </div>
         ) : (
           <div className="space-y-4">

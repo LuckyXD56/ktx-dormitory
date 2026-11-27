@@ -12,13 +12,21 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Select } from "@/components/ui/select";
+import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { listMembers, listViolations } from "@/services";
 import {
   emitAlertsRefresh,
   getCached,
@@ -89,28 +97,23 @@ export default function ViolationsPage() {
     }
     if (!getCached("violations_page")) setLoading(true);
     try {
-      const [vRes, mRes] = await Promise.all([
-        supabase
-          .from("violations")
-          .select(
-            "*, member:members(*, room:rooms(*, building:buildings(*))), recorder:profiles(id, full_name, role)"
-          )
-          .order("occurred_at", { ascending: false }),
-        supabase
-          .from("members")
-          .select("*, room:rooms(*, building:buildings(*))")
-          .order("full_name"),
+      const [vData, mData] = await Promise.all([
+        listViolations(),
+        listMembers({ orderBy: "full_name", ascending: true }),
       ]);
       const payload = {
-        violations: (vRes.data as Violation[]) ?? [],
-        members: (mRes.data as Member[]) ?? [],
+        violations: vData,
+        members: mData,
       };
       setViolations(payload.violations);
       setMembers(payload.members);
       setCached("violations_page", payload);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -262,74 +265,82 @@ export default function ViolationsPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {t.violations.title}
-            </h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {t.violations.subtitle}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={openAdd}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-700"
-          >
-            <Plus className="h-4 w-4" />
-            {t.violations.addViolation}
-          </button>
-        </div>
+        <PageHeader
+          title={t.violations.title}
+          subtitle={t.violations.subtitle}
+          actions={
+            <Button type="button" onClick={openAdd}>
+              <Plus className="h-4 w-4" />
+              {t.violations.addViolation}
+            </Button>
+          }
+        />
 
         {/* Filters */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t.members.searchPlaceholder}
-              className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-sm focus:border-navy-600 focus:outline-none"
-            />
+        <FilterBar
+          hasActiveFilters={
+            Boolean(search.trim()) ||
+            severityFilter !== "all" ||
+            statusFilter !== "all"
+          }
+          onReset={() => {
+            setSearch("");
+            setSeverityFilter("all");
+            setStatusFilter("all");
+          }}
+          resetLabel={t.common.reset}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <Input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t.members.searchPlaceholder}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={severityFilter}
+              onChange={(e) => setSeverityFilter(e.target.value)}
+            >
+              <option value="all">
+                {t.violations.severity}: {t.common.all}
+              </option>
+              <option value="low">{t.violations.sevLow}</option>
+              <option value="medium">{t.violations.sevMedium}</option>
+              <option value="high">{t.violations.sevHigh}</option>
+            </Select>
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">
+                {t.common.status}: {t.common.all}
+              </option>
+              <option value="pending">{t.violations.statusPending}</option>
+              <option value="resolved">{t.violations.statusResolved}</option>
+              <option value="appealed">{t.violations.statusAppealed}</option>
+            </Select>
           </div>
-          <select
-            value={severityFilter}
-            onChange={(e) => setSeverityFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          >
-            <option value="all">
-              {t.violations.severity}: {t.common.all}
-            </option>
-            <option value="low">{t.violations.sevLow}</option>
-            <option value="medium">{t.violations.sevMedium}</option>
-            <option value="high">{t.violations.sevHigh}</option>
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          >
-            <option value="all">
-              {t.common.status}: {t.common.all}
-            </option>
-            <option value="pending">{t.violations.statusPending}</option>
-            <option value="resolved">{t.violations.statusResolved}</option>
-            <option value="appealed">{t.violations.statusAppealed}</option>
-          </select>
-        </div>
+        </FilterBar>
 
         {/* Table */}
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16 gap-2 text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin text-navy-600" />
-              <span className="text-sm">{t.common.loading}</span>
-            </div>
+            <TableSkeleton rows={5} cols={6} />
           ) : filtered.length === 0 ? (
-            <div className="py-16 text-center text-sm text-slate-400">
-              {t.common.noData}
-            </div>
+            <EmptyState
+              icon={<ShieldAlert className="h-6 w-6" />}
+              title={t.common.noData}
+              action={
+                <Button type="button" size="sm" onClick={openAdd}>
+                  <Plus className="h-4 w-4" />
+                  {t.violations.addViolation}
+                </Button>
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">

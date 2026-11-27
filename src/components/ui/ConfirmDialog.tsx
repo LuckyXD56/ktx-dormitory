@@ -11,6 +11,8 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   title?: string;
   description?: string;
+  confirmLabel?: string;
+  tone?: "danger" | "primary";
   loading?: boolean;
 }
 
@@ -20,6 +22,8 @@ export function ConfirmDialog({
   onConfirm,
   title,
   description,
+  confirmLabel,
+  tone = "danger",
   loading = false,
 }: ConfirmDialogProps) {
   const { t } = useI18n();
@@ -54,9 +58,13 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50 transition-colors"
+            className={`rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-50 transition-colors ${
+              tone === "primary"
+                ? "bg-navy-600 hover:bg-navy-700"
+                : "bg-rose-600 hover:bg-rose-700"
+            }`}
           >
-            {loading ? t.common.saving : t.common.confirm}
+            {loading ? t.common.saving : (confirmLabel ?? t.common.confirm)}
           </button>
         </div>
       </div>

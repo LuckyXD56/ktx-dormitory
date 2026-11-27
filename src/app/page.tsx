@@ -22,8 +22,10 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
+import { fetchDashboardSnapshot } from "@/services";
 import {
   emitAlertsRefresh,
   emitDormSync,
@@ -118,54 +120,15 @@ export default function DashboardPage() {
 
     if (!initialDash) setLoading(true);
     try {
-      const [
-        memRes,
-        bldRes,
-        roomRes,
-        payRes,
-        attRes,
-        violRes,
-        annRes,
-      ] = await Promise.all([
-        supabase
-          .from("members")
-          .select("*, room:rooms(*, building:buildings(*))")
-          .order("created_at", { ascending: false }),
-        supabase.from("buildings").select("*").order("code"),
-        supabase
-          .from("rooms")
-          .select("*, building:buildings(*)")
-          .order("room_number"),
-        supabase
-          .from("payments")
-          .select("*, member:members(*, room:rooms(*, building:buildings(*)))")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("attendance_logs")
-          .select("*, member:members(*, room:rooms(*, building:buildings(*)))")
-          .order("recorded_at", { ascending: false })
-          .limit(200),
-        supabase
-          .from("violations")
-          .select("*, member:members(*, room:rooms(*, building:buildings(*)))")
-          .order("occurred_at", { ascending: false })
-          .limit(30),
-        supabase
-          .from("announcements")
-          .select("*, building:buildings(*), room:rooms(*)")
-          .order("is_pinned", { ascending: false })
-          .order("published_at", { ascending: false })
-          .limit(4),
-      ]);
-
+      const snap = await fetchDashboardSnapshot();
       const payload = {
-        members: (memRes.data as Member[]) ?? [],
-        buildings: (bldRes.data as Building[]) ?? [],
-        rooms: (roomRes.data as Room[]) ?? [],
-        payments: (payRes.data as Payment[]) ?? [],
-        attendanceLogs: (attRes.data as AttendanceLog[]) ?? [],
-        violations: (violRes.data as Violation[]) ?? [],
-        announcements: (annRes.data as Announcement[]) ?? [],
+        members: snap.members,
+        buildings: snap.buildings,
+        rooms: snap.rooms,
+        payments: snap.payments,
+        attendanceLogs: snap.attendance,
+        violations: snap.violations,
+        announcements: snap.announcements.slice(0, 4),
       };
       setMembers(payload.members);
       setBuildings(payload.buildings);
@@ -175,6 +138,8 @@ export default function DashboardPage() {
       setViolations(payload.violations);
       setAnnouncements(payload.announcements);
       setCached("dashboard_page", payload);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setLoading(false);
     }
@@ -353,56 +318,52 @@ export default function DashboardPage() {
     <AppShell>
       <div className="space-y-6">
         {/* Page Heading */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              {t.dashboard.title}
-            </h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {t.dashboard.subtitle}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={refreshing}
-              onClick={handleManualRefresh}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-              aria-label="Refresh Dashboard"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 text-slate-500 ${refreshing ? "animate-spin" : ""}`}
-              />
-              <span className="hidden sm:inline">
-                {lang === "vi" ? "Làm mới" : "รีเฟรช"}
-              </span>
-            </button>
-            <Link
-              href="/glassy-demo"
-              prefetch
-              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition-colors"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              {t.nav.glassyView}
-            </Link>
-            <Link
-              href="/rooms"
-              prefetch
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              <Building2 className="h-4 w-4 text-navy-600" />
-              {t.nav.rooms}
-            </Link>
-            <Link
-              href="/attendance"
-              prefetch
-              className="inline-flex items-center gap-2 rounded-xl bg-navy-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-navy-700 transition-colors"
-            >
-              <UserCheck className="h-4 w-4" />
-              {t.attendance.quickRollCall}
-            </Link>
-          </div>
-        </div>
+        <PageHeader
+          title={t.dashboard.title}
+          subtitle={t.dashboard.subtitle}
+          actions={
+            <>
+              <button
+                type="button"
+                disabled={refreshing}
+                onClick={handleManualRefresh}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                aria-label="Refresh Dashboard"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 text-slate-500 ${refreshing ? "animate-spin" : ""}`}
+                />
+                <span className="hidden sm:inline">
+                  {lang === "vi" ? "Làm mới" : "รีเฟรช"}
+                </span>
+              </button>
+              <Link
+                href="/glassy-demo"
+                prefetch
+                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {t.nav.glassyView}
+              </Link>
+              <Link
+                href="/rooms"
+                prefetch
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Building2 className="h-4 w-4 text-navy-600" />
+                {t.nav.rooms}
+              </Link>
+              <Link
+                href="/attendance"
+                prefetch
+                className="inline-flex items-center gap-2 rounded-xl bg-navy-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-navy-700 transition-colors"
+              >
+                <UserCheck className="h-4 w-4" />
+                {t.attendance.quickRollCall}
+              </Link>
+            </>
+          }
+        />
 
         {loading ? (
           <div className="space-y-5">

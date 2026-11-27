@@ -69,8 +69,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data) {
-        setProfileError(null);
         const prof = data as Profile;
+        if (prof.is_active === false) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setProfile(null);
+          setProfileError("ACCOUNT_INACTIVE");
+          try {
+            window.localStorage.removeItem(PROFILE_CACHE_KEY);
+            window.sessionStorage.clear();
+          } catch {
+            // Ignore
+          }
+          if (
+            typeof window !== "undefined" &&
+            !window.location.pathname.startsWith("/login")
+          ) {
+            window.location.href = "/login?inactive=1";
+          }
+          return;
+        }
+        setProfileError(null);
         setProfile(prof);
         try {
           window.localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(prof));

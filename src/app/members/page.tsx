@@ -5,22 +5,30 @@ import {
   ArrowUpDown,
   Edit2,
   Eye,
-  Loader2,
   LogIn,
   LogOut,
   Plus,
   Search,
   Trash2,
+  Users,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Select } from "@/components/ui/select";
+import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { deleteMembersBatch, listBuildings, listMembers, listRooms } from "@/services";
 import {
   emitAlertsRefresh,
   emitDormSync,
@@ -97,6 +105,7 @@ export default function MembersPage() {
   const [sortAsc, setSortAsc] = useState(true);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -117,29 +126,26 @@ export default function MembersPage() {
     }
     if (!getCached("members_page")) setLoading(true);
     try {
-      const [memRes, bldRes, roomRes] = await Promise.all([
-        supabase
-          .from("members")
-          .select("*, room:rooms(*, building:buildings(*))")
-          .order("created_at", { ascending: false }),
-        supabase.from("buildings").select("*").order("code"),
-        supabase
-          .from("rooms")
-          .select("*, building:buildings(*)")
-          .order("room_number"),
+      const [mData, bData, rData] = await Promise.all([
+        listMembers(),
+        listBuildings(),
+        listRooms(),
       ]);
       const payload: MembersCachePayload = {
-        members: (memRes.data as Member[]) ?? [],
-        buildings: (bldRes.data as Building[]) ?? [],
-        rooms: (roomRes.data as Room[]) ?? [],
+        members: mData,
+        buildings: bData,
+        rooms: rData,
       };
       setMembers(payload.members);
       setBuildings(payload.buildings);
       setRooms(payload.rooms);
       setCached("members_page", payload);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -432,22 +438,18 @@ export default function MembersPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(t.common.confirmDeleteDesc)) return;
-    const supabase = createClient();
-    if (!supabase) return;
+    setBulkConfirmOpen(false);
     setBulkDeleting(true);
     const ids = Array.from(selectedIds);
     setMembers((prev) => prev.filter((m) => !selectedIds.has(m.id)));
     setSelectedIds(new Set());
     try {
-      const { error } = await supabase.from("members").delete().in("id", ids);
-      if (error) {
-        showToast(error.message, "error");
-        await loadData(true);
-        return;
-      }
+      await deleteMembersBatch(ids);
       showToast(t.common.successDelete, "success");
       await refreshAfterMutation();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
+      await loadData(true);
     } finally {
       setBulkDeleting(false);
     }
@@ -469,134 +471,232 @@ export default function MembersPage() {
   return (
     <AppShell>
       <div className="space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {t.members.title}
-            </h1>
-            <p className="text-sm text-slate-500 mt-0.5">{t.members.subtitle}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {selectedIds.size > 0 && (
-              <button
-                type="button"
-                disabled={bulkDeleting}
-                onClick={handleBulkDelete}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
-              >
-                <Trash2 className="h-4 w-4" />
-                {t.members.deleteSelected.replace(
-                  "{n}",
-                  String(selectedIds.size)
-                )}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-navy-700 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              {t.members.addMember}
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          title={t.members.title}
+          subtitle={t.members.subtitle}
+          actions={
+            <>
+              {selectedIds.size > 0 && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={bulkDeleting}
+                  onClick={() => setBulkConfirmOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {t.members.deleteSelected.replace(
+                    "{n}",
+                    String(selectedIds.size)
+                  )}
+                </Button>
+              )}
+              <Button type="button" onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                {t.members.addMember}
+              </Button>
+            </>
+          }
+        />
 
         {/* Search & Filters */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-          <div className="relative lg:col-span-2">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t.members.searchPlaceholder}
-              className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-sm focus:border-navy-600 focus:outline-none focus:ring-2 focus:ring-navy-100"
-            />
-          </div>
-          <select
-            value={buildingFilter}
-            onChange={(e) => {
-              setBuildingFilter(e.target.value);
-              setFloorFilter("all");
-            }}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-navy-600 focus:outline-none"
-          >
-            <option value="all">
-              {t.common.building}: {t.common.all}
-            </option>
-            {buildings.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
+        <FilterBar
+          hasActiveFilters={
+            Boolean(search.trim()) ||
+            buildingFilter !== "all" ||
+            floorFilter !== "all" ||
+            statusFilter !== "all" ||
+            genderFilter !== "all"
+          }
+          onReset={() => {
+            setSearch("");
+            setBuildingFilter("all");
+            setFloorFilter("all");
+            setStatusFilter("all");
+            setGenderFilter("all");
+          }}
+          resetLabel={t.common.reset}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            <div className="relative lg:col-span-2">
+              <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+              <Input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t.members.searchPlaceholder}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={buildingFilter}
+              onChange={(e) => {
+                setBuildingFilter(e.target.value);
+                setFloorFilter("all");
+              }}
+            >
+              <option value="all">
+                {t.common.building}: {t.common.all}
               </option>
-            ))}
-          </select>
-          <select
-            value={floorFilter}
-            onChange={(e) => setFloorFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-navy-600 focus:outline-none"
-          >
-            <option value="all">
-              {t.rooms.floor}: {t.common.all}
-            </option>
-            {Array.from(
-              new Set(
-                rooms
-                  .filter(
-                    (r) =>
-                      buildingFilter === "all" ||
-                      r.building_id === buildingFilter
-                  )
-                  .map((r) => r.floor)
-              )
-            )
-              .sort((a, b) => a - b)
-              .map((fl) => (
-                <option key={fl} value={String(fl)}>
-                  {t.rooms.floor} {fl}
+              {buildings.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
                 </option>
               ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-navy-600 focus:outline-none"
-          >
-            <option value="all">
-              {t.common.status}: {t.common.all}
-            </option>
-            <option value="active">{t.members.statusActive}</option>
-            <option value="on_leave">{t.members.statusOnLeave}</option>
-            <option value="checked_out">{t.members.statusCheckedOut}</option>
-            <option value="suspended">{t.members.statusSuspended}</option>
-          </select>
-          <select
-            value={genderFilter}
-            onChange={(e) => setGenderFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-navy-600 focus:outline-none"
-          >
-            <option value="all">
-              {t.members.gender}: {t.common.all}
-            </option>
-            <option value="male">{t.members.male}</option>
-            <option value="female">{t.members.female}</option>
-            <option value="other">{t.members.other}</option>
-          </select>
-        </div>
+            </Select>
+            <Select
+              value={floorFilter}
+              onChange={(e) => setFloorFilter(e.target.value)}
+            >
+              <option value="all">
+                {t.rooms.floor}: {t.common.all}
+              </option>
+              {Array.from(
+                new Set(
+                  rooms
+                    .filter(
+                      (r) =>
+                        buildingFilter === "all" ||
+                        r.building_id === buildingFilter
+                    )
+                    .map((r) => r.floor)
+                )
+              )
+                .sort((a, b) => a - b)
+                .map((fl) => (
+                  <option key={fl} value={String(fl)}>
+                    {t.rooms.floor} {fl}
+                  </option>
+                ))}
+            </Select>
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">
+                {t.common.status}: {t.common.all}
+              </option>
+              <option value="active">{t.members.statusActive}</option>
+              <option value="on_leave">{t.members.statusOnLeave}</option>
+              <option value="checked_out">{t.members.statusCheckedOut}</option>
+              <option value="suspended">{t.members.statusSuspended}</option>
+            </Select>
+            <Select
+              value={genderFilter}
+              onChange={(e) => setGenderFilter(e.target.value)}
+            >
+              <option value="all">
+                {t.members.gender}: {t.common.all}
+              </option>
+              <option value="male">{t.members.male}</option>
+              <option value="female">{t.members.female}</option>
+              <option value="other">{t.members.other}</option>
+            </Select>
+          </div>
+        </FilterBar>
 
-        {/* Members Table */}
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        {/* Members Table & Mobile Cards */}
+        <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16 gap-2 text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin text-navy-600" />
-              <span className="text-sm">{t.common.loading}</span>
-            </div>
+            <TableSkeleton rows={6} cols={6} />
           ) : filteredMembers.length === 0 ? (
-            <div className="py-16 text-center text-sm text-slate-400">
-              {t.common.noData}
-            </div>
+            <EmptyState
+              icon={<Users className="h-6 w-6" />}
+              title={t.common.noData}
+              action={
+                <Button type="button" size="sm" onClick={openCreate}>
+                  <Plus className="h-4 w-4" />
+                  {t.members.addMember}
+                </Button>
+              }
+            />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="md:hidden divide-y divide-slate-100">
+                {filteredMembers.map((m) => (
+                  <div key={m.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(m.id)}
+                          onChange={() => toggleSelect(m.id)}
+                          className="h-4 w-4 rounded border-slate-300 shrink-0"
+                        />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-100 text-xs font-bold text-navy-800 overflow-hidden">
+                          {m.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={m.avatar_url}
+                              alt={m.full_name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            getInitials(m.full_name)
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 truncate">
+                            {m.full_name}
+                          </p>
+                          <p className="text-xs font-mono text-navy-700">
+                            {m.student_code}
+                          </p>
+                        </div>
+                      </div>
+                      {renderStatusBadge(m.status)}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                      <span>
+                        {m.room
+                          ? `${m.room.building?.code ?? ""} • ${t.rooms.floor} ${m.room.floor} • ${m.room.room_number}`
+                          : t.members.unassigned}
+                      </span>
+                      <span>{m.phone || "-"}</span>
+                    </div>
+                    <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleQuickStatus(
+                            m,
+                            m.status === "checked_out" ? "active" : "checked_out"
+                          )
+                        }
+                        className="rounded-xl border border-slate-200 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        {m.status === "checked_out"
+                          ? t.members.quickActivate
+                          : t.members.quickCheckOut}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewingMember(m)}
+                        className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
+                        title={t.common.viewDetails}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEdit(m)}
+                        className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-navy-50 hover:text-navy-700"
+                        title={t.common.edit}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeletingMember(m)}
+                        className="rounded-xl border border-rose-200 p-2 text-rose-600 hover:bg-rose-50"
+                        title={t.common.delete}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
                   <tr>
@@ -780,6 +880,7 @@ export default function MembersPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </div>
@@ -1067,6 +1168,13 @@ export default function MembersPage() {
         onClose={() => setDeletingMember(null)}
         onConfirm={handleDelete}
         loading={deleting}
+      />
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        onClose={() => setBulkConfirmOpen(false)}
+        onConfirm={handleBulkDelete}
+        loading={bulkDeleting}
       />
     </AppShell>
   );
