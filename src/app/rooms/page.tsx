@@ -80,7 +80,7 @@ export default function RoomsPage() {
   const [afAutoRooms, setAfAutoRooms] = useState(true);
   const [afRoomsPerFloor, setAfRoomsPerFloor] = useState(4);
   const [afCapacity, setAfCapacity] = useState(4);
-  const [afFee, setAfFee] = useState(2500);
+  const [afFee, setAfFee] = useState(2500000);
   const [savingFloor, setSavingFloor] = useState(false);
 
   // Building Modal
@@ -100,7 +100,7 @@ export default function RoomsPage() {
   const [rNumber, setRNumber] = useState("");
   const [rFloor, setRFloor] = useState(1);
   const [rCapacity, setRCapacity] = useState(4);
-  const [rFee, setRFee] = useState(2500);
+  const [rFee, setRFee] = useState(2500000);
   const [rStatus, setRStatus] = useState<RoomStatus>("available");
   const [rNotes, setRNotes] = useState("");
   const [savingRoom, setSavingRoom] = useState(false);
@@ -113,7 +113,7 @@ export default function RoomsPage() {
   const [bulkFloorTo, setBulkFloorTo] = useState(5);
   const [bulkRoomsPerFloor, setBulkRoomsPerFloor] = useState(4);
   const [bulkCapacity, setBulkCapacity] = useState(4);
-  const [bulkFee, setBulkFee] = useState(2500);
+  const [bulkFee, setBulkFee] = useState(2500000);
   const [savingBulk, setSavingBulk] = useState(false);
 
   // Assign / Quick-Add Member to Room Modal
@@ -418,7 +418,7 @@ export default function RoomsPage() {
                   room_number: roomNum,
                   floor: fl,
                   capacity: 4,
-                  monthly_fee: fl >= 4 ? 3000 : 2500,
+                  monthly_fee: fl >= 4 ? 3000000 : 2500000,
                   status: "available",
                   notes: "",
                 });
@@ -508,7 +508,7 @@ export default function RoomsPage() {
     setRNumber("");
     setRFloor(targetFl);
     setRCapacity(4);
-    setRFee(2500);
+    setRFee(2500000);
     setRStatus("available");
     setRNotes("");
     setRoomModalOpen(true);
@@ -568,7 +568,7 @@ export default function RoomsPage() {
     setAfAutoRooms(true);
     setAfRoomsPerFloor(4);
     setAfCapacity(4);
-    setAfFee(2500);
+    setAfFee(2500000);
     setAddFloorOpen(true);
   };
 
@@ -656,7 +656,7 @@ export default function RoomsPage() {
     setBulkFloorTo(defaultB?.total_floors ?? 5);
     setBulkRoomsPerFloor(4);
     setBulkCapacity(4);
-    setBulkFee(2500);
+    setBulkFee(2500000);
     setBulkOpen(true);
   };
 

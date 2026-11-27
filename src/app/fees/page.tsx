@@ -66,7 +66,7 @@ export default function FeesPage() {
   const [fMemberId, setFMemberId] = useState("");
   const [fMonth, setFMonth] = useState(getCurrentMonthYYYYMM());
   const [fType, setFType] = useState<FeeType>("room_fee");
-  const [fAmount, setFAmount] = useState(2500);
+  const [fAmount, setFAmount] = useState(2500000);
   const [fDueDate, setFDueDate] = useState("");
   const [fNotes, setFNotes] = useState("");
   const [savingBill, setSavingBill] = useState(false);
@@ -260,7 +260,7 @@ export default function FeesPage() {
     setFMemberId(first?.id ?? "");
     setFMonth(monthFilter || getCurrentMonthYYYYMM());
     setFType("room_fee");
-    setFAmount(Number(first?.room?.monthly_fee ?? 2500));
+    setFAmount(Number(first?.room?.monthly_fee ?? 2500000));
     setFDueDate(`${monthFilter || getCurrentMonthYYYYMM()}-05`);
     setFNotes("");
     setAddOpen(true);
