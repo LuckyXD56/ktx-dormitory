@@ -2,9 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeftRight,
   ArrowUpDown,
   Edit2,
   Eye,
+  FileSpreadsheet,
+  FileText,
   LogIn,
   LogOut,
   Plus,
@@ -13,7 +16,10 @@ import {
   Users,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { ImportExcelModal } from "@/components/members/ImportExcelModal";
 import { MemberDetailModal, MemberFormModal, type MemberFormState } from "@/components/members/MemberModals";
+import { ResidenceCertificateModal } from "@/components/members/ResidenceCertificate";
+import { RoomTransferModal } from "@/components/members/RoomTransferModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -25,7 +31,7 @@ import { Select } from "@/components/ui/select";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
-import { useI18n } from "@/lib/i18n";
+import { pickLang, useI18n } from "@/lib/i18n";
 import {
   createMember,
   deleteMember,
@@ -108,6 +114,10 @@ export default function MembersPage() {
   const [viewingMember, setViewingMember] = useState<Member | null>(null);
   const [deletingMember, setDeletingMember] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [transferMember, setTransferMember] = useState<Member | null>(null);
+  const [certMember, setCertMember] = useState<Member | null>(null);
 
   const loadData = useCallback(async (force = false) => {
     if (!force && isCacheFresh("members_page", 15_000)) {
@@ -459,6 +469,21 @@ export default function MembersPage() {
                   )}
                 </Button>
               )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setImportOpen(true)}
+                className="gap-1.5"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                {pickLang(lang, {
+                  th: "นำเข้า Excel",
+                  vi: "Nhập Excel",
+                  en: "Import Excel",
+                  zh: "导入 Excel",
+                  lo: "ນຳເຂົ້າ Excel",
+                })}
+              </Button>
               <Button type="button" onClick={openCreate}>
                 <Plus className="h-4 w-4" />
                 {t.members.addMember}
@@ -636,6 +661,28 @@ export default function MembersPage() {
                         {m.status === "checked_out"
                           ? t.members.quickActivate
                           : t.members.quickCheckOut}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTransferMember(m)}
+                        className="rounded-xl border border-slate-200 p-2 text-indigo-600 hover:bg-indigo-50"
+                        title={t.rooms.transferMember}
+                      >
+                        <ArrowLeftRight className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCertMember(m)}
+                        className="rounded-xl border border-slate-200 p-2 text-emerald-600 hover:bg-emerald-50"
+                        title={pickLang(lang, {
+                          th: "ใบรับรองการพัก",
+                          vi: "Giấy xác nhận",
+                          en: "Certificate",
+                          zh: "住宿证明",
+                          lo: "ໃບຢັ້ງຢືນທີ່ພັກ",
+                        })}
+                      >
+                        <FileText className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
@@ -820,6 +867,28 @@ export default function MembersPage() {
                           )}
                           <button
                             type="button"
+                            onClick={() => setTransferMember(m)}
+                            className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600"
+                            title={t.rooms.transferMember}
+                          >
+                            <ArrowLeftRight className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCertMember(m)}
+                            className="rounded-lg p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600"
+                            title={pickLang(lang, {
+                              th: "ใบรับรองการพัก",
+                              vi: "Giấy xác nhận",
+                              en: "Certificate",
+                              zh: "住宿证明",
+                              lo: "ໃບຢັ້ງຢືນທີ່ພັກ",
+                            })}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setViewingMember(m)}
                             className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-navy-700"
                             title={t.common.viewDetails}
@@ -923,6 +992,44 @@ export default function MembersPage() {
         onClose={() => setBulkConfirmOpen(false)}
         onConfirm={handleBulkDelete}
         loading={bulkDeleting}
+      />
+
+      <ImportExcelModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        rooms={rooms}
+        onImported={async (count) => {
+          if (count > 0) {
+            showToast(
+              pickLang(lang, {
+                th: `นำเข้าข้อมูลสำเร็จ ${count} รายการ`,
+                vi: `Đã nhập thành công ${count} sinh viên`,
+                en: `Imported ${count} members successfully`,
+                zh: `成功导入 ${count} 名学生`,
+                lo: `ນຳເຂົ້າຂໍ້ມູນສຳເລັດ ${count} ລາຍການ`,
+              }),
+              "success"
+            );
+            await refreshAfterMutation();
+          }
+        }}
+      />
+
+      <RoomTransferModal
+        open={Boolean(transferMember)}
+        onClose={() => setTransferMember(null)}
+        member={transferMember}
+        rooms={rooms}
+        onTransferred={async () => {
+          showToast(t.common.successSave, "success");
+          await refreshAfterMutation();
+        }}
+      />
+
+      <ResidenceCertificateModal
+        open={Boolean(certMember)}
+        onClose={() => setCertMember(null)}
+        member={certMember}
       />
     </AppShell>
   );

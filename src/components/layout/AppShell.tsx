@@ -94,6 +94,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [alerts, setAlerts] = useState<AlertSummary>(
     () => getCached<AlertSummary>("alerts", 120_000) ?? EMPTY_ALERTS
   );
+  const [seenAnnouncementIds, setSeenAnnouncementIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("dorm_seen_announcements");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setSeenAnnouncementIds(parsed);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const markAnnouncementsRead = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      setSeenAnnouncementIds((prev) => {
+        const next = Array.from(new Set([...prev, ...ids])).slice(-50);
+        try {
+          window.localStorage.setItem(
+            "dorm_seen_announcements",
+            JSON.stringify(next)
+          );
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   // Eagerly prefetch core routes in background for instant navigation transitions
   const hideStaffChrome = isStudent || (authLoading && !profile);
@@ -461,10 +493,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
     )?.label ?? t.appName;
 
+  const unreadAnnouncements = useMemo(
+    () =>
+      alerts.recentAnnouncements.filter(
+        (a) => !seenAnnouncementIds.includes(a.id)
+      ),
+    [alerts.recentAnnouncements, seenAnnouncementIds]
+  );
+
   const totalNotifCount =
     (alerts.unpaidCount > 0 ? 1 : 0) +
     (alerts.notReturnedCount > 0 ? 1 : 0) +
-    (alerts.pendingViolationsCount > 0 ? 1 : 0);
+    (alerts.pendingViolationsCount > 0 ? 1 : 0) +
+    unreadAnnouncements.length;
 
   return (
     <SidebarProvider
@@ -873,25 +914,61 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       )}
                       {alerts.recentAnnouncements.length > 0 && (
                         <div className="pt-2 border-t border-slate-100">
-                          <p className="font-semibold text-slate-700 mb-1.5">
-                            {t.dashboard.latestAnnouncements}
-                          </p>
-                          <div className="space-y-1.5">
-                            {alerts.recentAnnouncements.map((a) => (
-                              <Link
-                                key={a.id}
-                                href="/announcements"
-                                onClick={() => setNotifOpen(false)}
-                                className="block rounded-lg bg-slate-50 px-2.5 py-1.5 hover:bg-slate-100"
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="font-semibold text-slate-700">
+                              {t.dashboard.latestAnnouncements}
+                            </p>
+                            {unreadAnnouncements.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  markAnnouncementsRead(
+                                    alerts.recentAnnouncements.map((a) => a.id)
+                                  )
+                                }
+                                className="text-[11px] font-medium text-primary hover:underline"
                               >
-                                <p className="font-medium text-slate-800 truncate">
-                                  {a.title}
-                                </p>
-                                <p className="text-[10px] text-slate-400">
-                                  {formatDateTime(a.published_at, lang)}
-                                </p>
-                              </Link>
-                            ))}
+                                {pickLang(lang, {
+                                  th: "อ่านทั้งหมดแล้ว",
+                                  vi: "Đã đọc tất cả",
+                                  en: "Mark all read",
+                                  zh: "全部标为已读",
+                                  lo: "ອ່ານທັງໝົດແລ້ວ",
+                                })}
+                              </button>
+                            )}
+                          </div>
+                          <div className="space-y-1.5">
+                            {alerts.recentAnnouncements.map((a) => {
+                              const isUnread = !seenAnnouncementIds.includes(a.id);
+                              return (
+                                <Link
+                                  key={a.id}
+                                  href="/announcements"
+                                  onClick={() => {
+                                    markAnnouncementsRead([a.id]);
+                                    setNotifOpen(false);
+                                  }}
+                                  className={`block rounded-lg px-2.5 py-1.5 transition-colors ${
+                                    isUnread
+                                      ? "bg-blue-50/90 border border-blue-200/70 hover:bg-blue-100/80"
+                                      : "bg-slate-50 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5">
+                                    {isUnread && (
+                                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" />
+                                    )}
+                                    <p className="font-medium text-slate-800 truncate">
+                                      {a.title}
+                                    </p>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400">
+                                    {formatDateTime(a.published_at, lang)}
+                                  </p>
+                                </Link>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
