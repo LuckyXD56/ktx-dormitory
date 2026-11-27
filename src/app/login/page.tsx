@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Building2,
@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
+import { ConstellationCanvas } from "@/components/auth/ConstellationCanvas";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -23,6 +24,7 @@ import { useToast } from "@/components/providers/ToastProvider";
 export default function LoginPage() {
   const { t, lang, setLang } = useI18n();
   const { showToast } = useToast();
+  const heroRef = useRef<HTMLElement | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -116,16 +118,21 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:grid lg:grid-cols-2 bg-[#f5f8fc]">
       {/* Left Brand Showcase (Desktop) & Top Hero Strip (Mobile) */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#0b3c7d] via-[#0d4b97] to-[#072652] text-white lg:border-r-[3px] lg:border-amber-400/90 px-6 pt-8 pb-12 sm:px-10 lg:px-14 lg:py-12 flex flex-col justify-center">
-        {/* Subtle Decorative Glow & Constellation Pattern */}
+      <section
+        ref={heroRef}
+        className="relative overflow-hidden bg-gradient-to-br from-[#0b3c7d] via-[#0d4b97] to-[#072652] text-white lg:border-r-[3px] lg:border-amber-400/90 px-6 pt-8 pb-12 sm:px-10 lg:px-14 lg:py-12 flex flex-col justify-center"
+      >
+        {/* Interactive Drifting Constellation & Stars */}
+        <ConstellationCanvas containerRef={heroRef} />
+
+        {/* Subtle Ambient Radial Nebula Glow */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-25"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 18% 22%, rgba(251, 191, 36, 0.25) 0%, transparent 42%), radial-gradient(circle at 80% 75%, rgba(96, 165, 250, 0.3) 0%, transparent 48%), radial-gradient(rgba(255,255,255,0.22) 1px, transparent 1px)",
-            backgroundSize: "100% 100%, 100% 100%, 34px 34px",
-          }}
+          className="pointer-events-none absolute -top-24 -left-24 h-80 w-80 rounded-full bg-amber-400/15 blur-3xl animate-pulse"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-24 -right-16 h-96 w-96 rounded-full bg-sky-400/15 blur-3xl animate-pulse"
         />
 
         <div className="relative z-10 max-w-lg mx-auto lg:mx-0 w-full space-y-6">
@@ -230,7 +237,7 @@ export default function LoginPage() {
           }}
         />
 
-        <div className="relative z-10 w-full max-w-[420px]">
+        <div className="relative z-10 w-full max-w-[420px] animate-fade-up">
           <div className="lg:rounded-2xl lg:bg-white lg:border lg:border-slate-200/85 lg:shadow-[0_20px_50px_-15px_rgba(9,35,77,0.14)] overflow-hidden">
             {/* Gold-to-Royal-Blue Top Accent Bar */}
             <div className="hidden lg:block h-1.5 w-full bg-gradient-to-r from-amber-400 via-amber-300 to-[#0d4b97]" />
