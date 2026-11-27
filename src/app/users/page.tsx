@@ -1,15 +1,16 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Search, ShieldCheck, UserCog, Users } from "lucide-react";
+import { Loader2, Plus, Search, ShieldCheck, Trash2, UserCog, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
-import { subscribeDormSync } from "@/lib/cache";
+import { emitDormSync, subscribeDormSync } from "@/lib/cache";
 import type { Language, Profile, UserRole } from "@/types/database";
 
 export default function UsersPage() {
@@ -29,6 +30,9 @@ export default function UsersPage() {
   const [role, setRole] = useState<UserRole>("staff");
   const [prefLang, setPrefLang] = useState<Language>("th");
   const [creating, setCreating] = useState(false);
+
+  const [deletingUser, setDeletingUser] = useState<Profile | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadUsers = useCallback(async () => {
     const supabase = createClient();
@@ -146,8 +150,36 @@ export default function UsersPage() {
       setPassword("");
       setPhone("");
       await loadUsers();
+      emitDormSync("profiles");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: deletingUser.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.error === "SERVICE_ROLE_MISSING") {
+          showToast(t.users.createInfo, "info");
+        } else {
+          showToast(json.error || t.common.errorGeneric, "error");
+        }
+        return;
+      }
+      showToast(t.common.successDelete, "success");
+      setDeletingUser(null);
+      await loadUsers();
+      emitDormSync("profiles");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -248,6 +280,7 @@ export default function UsersPage() {
                         <th className="px-4 py-3">{t.auth.email}</th>
                         <th className="px-4 py-3">{t.users.role}</th>
                         <th className="px-4 py-3">{t.users.activeStatus}</th>
+                        <th className="px-4 py-3 text-right">{t.common.actions}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -300,6 +333,23 @@ export default function UsersPage() {
                                     ? t.users.active
                                     : t.users.inactive}
                                 </Badge>
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                type="button"
+                                disabled={isSelf || lockedSuper}
+                                onClick={() => setDeletingUser(u)}
+                                title={
+                                  isSelf || lockedSuper
+                                    ? t.common.noPermission
+                                    : t.common.delete
+                                }
+                                aria-label={`${t.common.delete} ${u.email}`}
+                                className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span>{t.common.delete}</span>
                               </button>
                             </td>
                           </tr>
@@ -410,6 +460,19 @@ export default function UsersPage() {
           </div>
         </form>
       </Modal>
+      <ConfirmDialog
+        open={Boolean(deletingUser)}
+        onClose={() => !deleting && setDeletingUser(null)}
+        onConfirm={handleDeleteUser}
+        loading={deleting}
+        description={
+          deletingUser
+            ? lang === "vi"
+              ? `Xác nhận xóa tài khoản "${deletingUser.full_name}" (${deletingUser.email})? Thao tác này không thể hoàn tác.`
+              : `ยืนยันการลบบัญชี "${deletingUser.full_name}" (${deletingUser.email})? การดำเนินการนี้ไม่สามารถย้อนกลับได้`
+            : undefined
+        }
+      />
     </AppShell>
   );
 }
