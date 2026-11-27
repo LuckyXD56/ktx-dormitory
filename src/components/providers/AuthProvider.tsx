@@ -42,18 +42,21 @@ const AuthContext = createContext<AuthContextValue>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const raw = window.localStorage.getItem(PROFILE_CACHE_KEY);
-      return raw ? (JSON.parse(raw) as Profile) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { setLang } = useI18n();
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PROFILE_CACHE_KEY);
+      if (raw) {
+        setProfile((prev) => prev ?? (JSON.parse(raw) as Profile));
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   const fetchProfile = useCallback(
     async (userId: string) => {

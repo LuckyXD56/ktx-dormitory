@@ -96,6 +96,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   // Eagerly prefetch core routes in background for instant navigation transitions
+  const hideStaffChrome = isStudent || (authLoading && !profile);
   const isStudentAllowedRoute =
     pathname === "/" ||
     pathname.startsWith("/announcements") ||
@@ -328,7 +329,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const mainNav = useMemo(
     () =>
-      isStudent
+      hideStaffChrome
         ? [
             {
               href: "/",
@@ -399,12 +400,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               badge: null as string | null,
             },
           ],
-    [isStudent, t, alerts]
+    [hideStaffChrome, t, alerts]
   );
 
   const systemNav = useMemo(
     () =>
-      isStudent
+      hideStaffChrome
         ? [
             {
               href: "/profile",
@@ -439,7 +440,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               badge: "Pro",
             },
           ],
-    [isStudent, t]
+    [hideStaffChrome, t]
   );
 
   const q = sidebarSearch.trim().toLowerCase();
@@ -506,7 +507,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
 
-          {!isStudent && (
+          {!hideStaffChrome && (
             <div className="relative mt-3 w-full">
               <Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" />
               <Input
@@ -633,7 +634,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarGroup>
 
           {/* Dormitory Quick Action Card (Staff/Admin only) */}
-          {!isStudent && (
+          {!hideStaffChrome && (
             <div className="px-2 pt-3 mt-auto">
               <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-blue-500/10 p-3.5">
                 <div className="mb-1.5 flex items-center gap-2">
@@ -710,7 +711,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            {!isStudent && (
+            {!hideStaffChrome && (
               <button
                 type="button"
                 onClick={() => setCmdOpen(true)}
@@ -767,7 +768,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             </span>
 
-            {!isStudent && (
+            {!hideStaffChrome && (
               <>
                 <Link
                   href="/glassy-demo"
@@ -938,7 +939,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Mobile Bottom Quick Control Bar */}
         <nav className="no-print fixed bottom-0 inset-x-0 z-30 flex items-center justify-around border-t border-slate-200 bg-white/95 backdrop-blur-md py-1.5 md:hidden">
-          {(isStudent
+          {(hideStaffChrome
             ? [
                 { href: "/", icon: LayoutDashboard, label: t.studentPortal.navLabel },
                 { href: "/announcements", icon: Bell, label: t.nav.announcements },
