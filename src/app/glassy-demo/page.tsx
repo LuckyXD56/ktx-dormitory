@@ -1,11 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import GlassyDashboard, {
-  type DormGlassyData,
-  type DormWorkItem,
+import type {
+  DormGlassyData,
+  DormWorkItem,
 } from "@/components/ui/glassy-dashboard";
-import { createClient } from "@/lib/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  createAttendanceLog,
+  fetchDashboardSnapshot,
+  updatePayment,
+  updateViolation,
+} from "@/services";
 import {
   emitAlertsRefresh,
   getCached,
@@ -27,6 +34,18 @@ import type {
   Room,
   Violation,
 } from "@/types/database";
+
+const GlassyDashboard = dynamic(
+  () => import("@/components/ui/glassy-dashboard"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-screen bg-slate-950 p-6 flex items-center justify-center">
+        <Skeleton className="h-[82vh] w-full max-w-6xl rounded-3xl bg-slate-800/60" />
+      </div>
+    ),
+  }
+);
 
 interface DashCache {
   members: Member[];
@@ -85,54 +104,24 @@ export default function GlassyDormPage() {
   }, []);
 
   const loadData = useCallback(async (force = false) => {
-    const supabase = createClient();
-    if (!supabase) return;
     if (!force && isCacheFresh("dashboard_page", 15_000)) return;
-
-    const [memRes, bldRes, roomRes, payRes, attRes, violRes, annRes] =
-      await Promise.all([
-        supabase
-          .from("members")
-          .select("*, room:rooms(*, building:buildings(*))")
-          .order("created_at", { ascending: false }),
-        supabase.from("buildings").select("*").order("code"),
-        supabase
-          .from("rooms")
-          .select("*, building:buildings(*)")
-          .order("room_number"),
-        supabase
-          .from("payments")
-          .select("*, member:members(*, room:rooms(*, building:buildings(*)))")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("attendance_logs")
-          .select("*, member:members(*, room:rooms(*, building:buildings(*)))")
-          .order("recorded_at", { ascending: false })
-          .limit(200),
-        supabase
-          .from("violations")
-          .select("*, member:members(*, room:rooms(*, building:buildings(*)))")
-          .order("occurred_at", { ascending: false })
-          .limit(40),
-        supabase
-          .from("announcements")
-          .select("*, building:buildings(*), room:rooms(*)")
-          .order("is_pinned", { ascending: false })
-          .order("published_at", { ascending: false })
-          .limit(10),
-      ]);
-
-    const next: DashCache = {
-      members: (memRes.data as Member[]) ?? [],
-      buildings: (bldRes.data as Building[]) ?? [],
-      rooms: (roomRes.data as Room[]) ?? [],
-      payments: (payRes.data as Payment[]) ?? [],
-      attendanceLogs: (attRes.data as AttendanceLog[]) ?? [],
-      violations: (violRes.data as Violation[]) ?? [],
-      announcements: (annRes.data as Announcement[]) ?? [],
-    };
-    setRaw(next);
-    setCached("dashboard_page", next);
+    try {
+      const snap = await fetchDashboardSnapshot();
+      const next: DashCache = {
+        members: snap.members,
+        buildings: snap.buildings,
+        rooms: snap.rooms,
+        payments: snap.payments,
+        attendanceLogs: snap.attendance,
+        violations: snap.violations,
+        announcements: snap.announcements,
+      };
+      setRaw(next);
+      setCached("dashboard_page", next);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to load", "error");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -345,58 +334,42 @@ export default function GlassyDormPage() {
   }, [raw, lang]);
 
   const handleResolveWork = async (item: DormWorkItem) => {
-    const supabase = createClient();
-    if (!supabase || !user) return;
-
-    if (item.kind === "payment") {
-      const target = raw.payments.find((p) => p.id === item.entityId);
-      if (!target) return;
-      const { error } = await supabase
-        .from("payments")
-        .update({
+    if (!user) return;
+    try {
+      if (item.kind === "payment") {
+        const target = raw.payments.find((p) => p.id === item.entityId);
+        if (!target) return;
+        await updatePayment(target.id, {
           paid_amount: Number(target.amount),
           status: "paid",
           paid_at: new Date().toISOString(),
           payment_method: "transfer",
           receipt_number: target.receipt_number || generateReceiptNumber(),
           recorded_by: user.id,
-        })
-        .eq("id", target.id);
-      if (error) {
-        showToast(error.message, "error");
-        return;
+        });
+      } else if (item.kind === "attendance") {
+        await createAttendanceLog({
+          member_id: item.entityId,
+          log_type: "check_in",
+          recorded_at: new Date().toISOString(),
+          is_late: false,
+          notes: "Check-in via GlassyDashboard",
+          recorded_by: user.id,
+        });
+      } else if (item.kind === "violation") {
+        await updateViolation(item.entityId, { status: "resolved" });
       }
-    } else if (item.kind === "attendance") {
-      const { error } = await supabase.from("attendance_logs").insert({
-        member_id: item.entityId,
-        log_type: "check_in",
-        recorded_at: new Date().toISOString(),
-        is_late: false,
-        notes: "Check-in via GlassyDashboard",
-        recorded_by: user.id,
-      });
-      if (error) {
-        showToast(error.message, "error");
-        return;
-      }
-    } else if (item.kind === "violation") {
-      const { error } = await supabase
-        .from("violations")
-        .update({ status: "resolved" })
-        .eq("id", item.entityId);
-      if (error) {
-        showToast(error.message, "error");
-        return;
-      }
-    }
 
-    showToast(
-      lang === "vi" ? "Đã cập nhật thành công" : "อัปเดตข้อมูลเรียบร้อยแล้ว",
-      "success"
-    );
-    invalidateCache();
-    emitAlertsRefresh();
-    await loadData(true);
+      showToast(
+        lang === "vi" ? "Đã cập nhật thành công" : "อัปเดตข้อมูลเรียบร้อยแล้ว",
+        "success"
+      );
+      invalidateCache();
+      emitAlertsRefresh();
+      await loadData(true);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to update", "error");
+    }
   };
 
   return (

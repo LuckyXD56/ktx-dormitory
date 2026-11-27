@@ -13,22 +13,28 @@ import {
   Users,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { MemberDetailModal, MemberFormModal, type MemberFormState } from "@/components/members/MemberModals";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { ImageUpload } from "@/components/ui/ImageUpload";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Select } from "@/components/ui/select";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
-import { createClient } from "@/lib/supabase/client";
-import { deleteMembersBatch, listBuildings, listMembers, listRooms } from "@/services";
+import {
+  createMember,
+  deleteMember,
+  deleteMembersBatch,
+  listBuildings,
+  listMembers,
+  listRooms,
+  updateMember,
+} from "@/services";
 import {
   emitAlertsRefresh,
   emitDormSync,
@@ -53,20 +59,6 @@ interface MembersCachePayload {
   members: Member[];
   buildings: Building[];
   rooms: Room[];
-}
-
-interface MemberFormState {
-  student_code: string;
-  full_name: string;
-  avatar_url: string;
-  gender: MemberGender;
-  country: string;
-  province: string;
-  phone: string;
-  room_id: string;
-  check_in_date: string;
-  status: MemberStatus;
-  notes: string;
 }
 
 const emptyForm = (suggestedCode = ""): MemberFormState => ({
@@ -118,8 +110,6 @@ export default function MembersPage() {
   const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async (force = false) => {
-    const supabase = createClient();
-    if (!supabase) return;
     if (!force && isCacheFresh("members_page", 15_000)) {
       setLoading(false);
       return;
@@ -318,9 +308,6 @@ export default function MembersPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
-    if (!supabase) return;
-
     setSaving(true);
     try {
       const payload = {
@@ -339,21 +326,17 @@ export default function MembersPage() {
         notes: form.notes.trim(),
       };
 
-      const { error } = editingMember
-        ? await supabase
-            .from("members")
-            .update(payload)
-            .eq("id", editingMember.id)
-        : await supabase.from("members").insert(payload);
-
-      if (error) {
-        showToast(error.message, "error");
-        return;
+      if (editingMember) {
+        await updateMember(editingMember.id, payload);
+      } else {
+        await createMember(payload);
       }
 
       showToast(t.common.successSave, "success");
       setModalOpen(false);
       await refreshAfterMutation();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setSaving(false);
     }
@@ -361,8 +344,6 @@ export default function MembersPage() {
 
   // Quick 1-click check-out / re-activate (Optimistic)
   const handleQuickStatus = async (m: Member, nextStatus: MemberStatus) => {
-    const supabase = createClient();
-    if (!supabase) return;
     const nextRoomId = nextStatus === "checked_out" ? null : m.room_id;
 
     setMembers((prev) =>
@@ -378,42 +359,30 @@ export default function MembersPage() {
       )
     );
 
-    const { error } = await supabase
-      .from("members")
-      .update({ status: nextStatus, room_id: nextRoomId })
-      .eq("id", m.id);
-
-    if (error) {
-      showToast(error.message, "error");
+    try {
+      await updateMember(m.id, { status: nextStatus, room_id: nextRoomId });
+      showToast(t.common.successSave, "success");
+      await refreshAfterMutation();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
       await loadData(true);
-      return;
     }
-    showToast(t.common.successSave, "success");
-    await refreshAfterMutation();
   };
 
   const handleDelete = async () => {
     if (!deletingMember) return;
-    const supabase = createClient();
-    if (!supabase) return;
     const targetId = deletingMember.id;
     setDeleting(true);
-    // Optimistic removal
     setMembers((prev) => prev.filter((m) => m.id !== targetId));
     setDeletingMember(null);
 
     try {
-      const { error } = await supabase
-        .from("members")
-        .delete()
-        .eq("id", targetId);
-      if (error) {
-        showToast(error.message, "error");
-        await loadData(true);
-        return;
-      }
+      await deleteMember(targetId);
       showToast(t.common.successDelete, "success");
       await refreshAfterMutation();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
+      await loadData(true);
     } finally {
       setDeleting(false);
     }
@@ -885,283 +854,62 @@ export default function MembersPage() {
         </div>
       </div>
 
-      {/* Add / Edit Member Modal */}
-      <Modal
+      <MemberFormModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingMember ? t.members.editMember : t.members.addMember}
-        maxWidth="lg"
-      >
-        <form onSubmit={handleSave} className="space-y-4">
-          <ImageUpload
-            value={form.avatar_url}
-            onChange={(url) => setForm((f) => ({ ...f, avatar_url: url }))}
-            folder="avatars"
-            label={t.members.avatar}
-          />
+        editingMember={editingMember}
+        form={form}
+        setForm={setForm}
+        rooms={rooms}
+        roomOccupancyMap={roomOccupancyMap}
+        saving={saving}
+        onSubmit={handleSave}
+        labels={{
+          editMember: t.members.editMember,
+          addMember: t.members.addMember,
+          avatar: t.members.avatar,
+          studentCode: t.members.studentCode,
+          fullName: t.members.fullName,
+          gender: t.members.gender,
+          male: t.members.male,
+          female: t.members.female,
+          other: t.members.other,
+          phone: t.members.phone,
+          country: t.members.country,
+          province: t.members.province,
+          buildingRoom: t.members.buildingRoom,
+          unassigned: t.members.unassigned,
+          checkInDate: t.members.checkInDate,
+          residenceStatus: t.members.residenceStatus,
+          statusActive: t.members.statusActive,
+          statusOnLeave: t.members.statusOnLeave,
+          statusCheckedOut: t.members.statusCheckedOut,
+          statusSuspended: t.members.statusSuspended,
+          notes: t.common.notes,
+          cancel: t.common.cancel,
+          save: t.common.save,
+          saving: t.common.saving,
+        }}
+      />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.members.studentCode} *
-              </label>
-              <input
-                type="text"
-                required
-                value={form.student_code}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, student_code: e.target.value }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.members.fullName} *
-              </label>
-              <input
-                type="text"
-                required
-                value={form.full_name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, full_name: e.target.value }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.members.gender}
-              </label>
-              <select
-                value={form.gender}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    gender: e.target.value as MemberGender,
-                  }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              >
-                <option value="male">{t.members.male}</option>
-                <option value="female">{t.members.female}</option>
-                <option value="other">{t.members.other}</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.members.phone}
-              </label>
-              <input
-                type="text"
-                value={form.phone}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, phone: e.target.value }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.members.country}
-              </label>
-              <input
-                type="text"
-                value={form.country}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, country: e.target.value }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.members.province}
-              </label>
-              <input
-                type="text"
-                value={form.province}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, province: e.target.value }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.members.buildingRoom}
-              </label>
-              <select
-                value={form.room_id}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, room_id: e.target.value }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              >
-                <option value="">{t.members.unassigned}</option>
-                {rooms.map((r) => {
-                  const occ = roomOccupancyMap.get(r.id) ?? 0;
-                  const isCurrent = editingMember?.room_id === r.id;
-                  const disabled =
-                    r.status === "maintenance" ||
-                    (!isCurrent && occ >= r.capacity);
-                  return (
-                    <option key={r.id} value={r.id} disabled={disabled}>
-                      {r.building?.name ?? r.building?.code} — {r.room_number} (
-                      {occ}/{r.capacity})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.members.checkInDate}
-              </label>
-              <input
-                type="date"
-                value={form.check_in_date}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, check_in_date: e.target.value }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.members.residenceStatus}
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    status: e.target.value as MemberStatus,
-                  }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              >
-                <option value="active">{t.members.statusActive}</option>
-                <option value="on_leave">{t.members.statusOnLeave}</option>
-                <option value="checked_out">{t.members.statusCheckedOut}</option>
-                <option value="suspended">{t.members.statusSuspended}</option>
-              </select>
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.common.notes}
-              </label>
-              <textarea
-                rows={2}
-                value={form.notes}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, notes: e.target.value }))
-                }
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-navy-600 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              {t.common.cancel}
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-xl bg-navy-600 px-5 py-2 text-sm font-semibold text-white hover:bg-navy-700 disabled:opacity-50"
-            >
-              {saving ? t.common.saving : t.common.save}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Detail View Modal */}
-      <Modal
-        open={Boolean(viewingMember)}
+      <MemberDetailModal
+        member={viewingMember}
         onClose={() => setViewingMember(null)}
-        title={viewingMember?.full_name ?? ""}
-        subtitle={viewingMember?.student_code}
-        maxWidth="md"
-      >
-        {viewingMember && (
-          <div className="space-y-4 text-sm">
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-2xl bg-navy-100 text-navy-800 font-bold text-lg flex items-center justify-center overflow-hidden">
-                {viewingMember.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={viewingMember.avatar_url}
-                    alt={viewingMember.full_name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  getInitials(viewingMember.full_name)
-                )}
-              </div>
-              <div>
-                <p className="font-bold text-slate-900 text-base">
-                  {viewingMember.full_name}
-                </p>
-                <p className="text-slate-500">
-                  {viewingMember.room
-                    ? `${viewingMember.room.building?.name ?? ""} / ${viewingMember.room.room_number}`
-                    : t.members.unassigned}
-                </p>
-                <div className="mt-1">{renderStatusBadge(viewingMember.status)}</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 border border-slate-100">
-              <div>
-                <p className="text-xs text-slate-400">{t.members.gender}</p>
-                <p className="font-medium">
-                  {viewingMember.gender === "male"
-                    ? t.members.male
-                    : viewingMember.gender === "female"
-                    ? t.members.female
-                    : t.members.other}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">{t.members.phone}</p>
-                <p className="font-medium">{viewingMember.phone || "-"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">{t.members.country}</p>
-                <p className="font-medium">{viewingMember.country}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">{t.members.province}</p>
-                <p className="font-medium">{viewingMember.province || "-"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">{t.members.checkInDate}</p>
-                <p className="font-medium">
-                  {formatDate(viewingMember.check_in_date, lang)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">{t.common.notes}</p>
-                <p className="font-medium">{viewingMember.notes || "-"}</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+        lang={lang}
+        renderStatusBadge={renderStatusBadge}
+        labels={{
+          unassigned: t.members.unassigned,
+          gender: t.members.gender,
+          male: t.members.male,
+          female: t.members.female,
+          other: t.members.other,
+          phone: t.members.phone,
+          country: t.members.country,
+          province: t.members.province,
+          checkInDate: t.members.checkInDate,
+          notes: t.common.notes,
+        }}
+      />
 
       <ConfirmDialog
         open={Boolean(deletingMember)}

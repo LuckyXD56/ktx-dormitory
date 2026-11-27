@@ -43,6 +43,24 @@ export async function createRoom(input: RoomInput): Promise<Room> {
   return data as Room;
 }
 
+export async function createRoomsBatch(rows: RoomInput[]): Promise<void> {
+  if (rows.length === 0) return;
+  const supabase = requireSupabase();
+  const { error } = await supabase.from("rooms").insert(
+    rows.map((input) => ({
+      building_id: input.building_id,
+      room_number: input.room_number.trim(),
+      floor: input.floor,
+      capacity: input.capacity,
+      monthly_fee: input.monthly_fee,
+      status: input.status ?? "available",
+      notes: input.notes?.trim() ?? "",
+    }))
+  );
+  assertNoError(error, "Failed to create rooms");
+  syncCaches(["rooms_page", "members_page", "dashboard_page", "command_index"], "rooms");
+}
+
 export async function updateRoom(
   id: string,
   input: Partial<RoomInput>

@@ -6,12 +6,12 @@ import {
   CreditCard,
   Loader2,
   Plus,
-  Printer,
   Receipt,
   Search,
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { CreateBillModal, ReceiptModal, RecordPaymentModal } from "@/components/fees/FeeModals";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,6 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Select } from "@/components/ui/select";
 import { StatCard } from "@/components/ui/StatCard";
@@ -27,8 +26,14 @@ import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useI18n } from "@/lib/i18n";
-import { createClient } from "@/lib/supabase/client";
-import { listMembers, listPayments } from "@/services";
+import {
+  createPayment,
+  createPaymentsBatch,
+  deletePayment,
+  listMembers,
+  listPayments,
+  updatePayment,
+} from "@/services";
 import {
   emitAlertsRefresh,
   getCached,
@@ -39,7 +44,6 @@ import {
 } from "@/lib/cache";
 import {
   formatCurrency,
-  formatDate,
   formatDateTime,
   generateReceiptNumber,
   getCurrentMonthYYYYMM,
@@ -104,8 +108,6 @@ export default function FeesPage() {
   const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async (force = false) => {
-    const supabase = createClient();
-    if (!supabase) return;
     if (!force && isCacheFresh("fees_page", 15_000)) {
       setLoading(false);
       return;
@@ -214,9 +216,7 @@ export default function FeesPage() {
   const handleGenerateMonthly = async () => {
     setConfirmFeeAction(null);
     const targetMonth = monthFilter || getCurrentMonthYYYYMM();
-
-    const supabase = createClient();
-    if (!supabase || !user) return;
+    if (!user) return;
     setGenerating(true);
     try {
       const existingMemberIds = new Set(
@@ -244,17 +244,15 @@ export default function FeesPage() {
         }));
 
       if (toInsert.length > 0) {
-        const { error } = await supabase.from("payments").insert(toInsert);
-        if (error) {
-          showToast(error.message, "error");
-          return;
-        }
+        await createPaymentsBatch(toInsert);
       }
       showToast(
         t.fees.generatedCount.replace("{n}", String(toInsert.length)),
         "success"
       );
       await refreshFees();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setGenerating(false);
     }
@@ -273,12 +271,11 @@ export default function FeesPage() {
 
   const handleCreateBill = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
-    if (!supabase || !user) return;
+    if (!user) return;
     setSavingBill(true);
     try {
       const member = members.find((m) => m.id === fMemberId);
-      const { error } = await supabase.from("payments").insert({
+      await createPayment({
         member_id: fMemberId,
         room_id: member?.room_id ?? null,
         billing_month: fMonth,
@@ -290,13 +287,11 @@ export default function FeesPage() {
         notes: fNotes.trim(),
         recorded_by: user.id,
       });
-      if (error) {
-        showToast(error.message, "error");
-        return;
-      }
       showToast(t.common.successSave, "success");
       setAddOpen(false);
       await refreshFees();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setSavingBill(false);
     }
@@ -318,9 +313,7 @@ export default function FeesPage() {
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!payingItem) return;
-    const supabase = createClient();
-    if (!supabase || !user) return;
+    if (!payingItem || !user) return;
     setSavingPay(true);
     try {
       const nextPaid = Math.min(
@@ -334,27 +327,21 @@ export default function FeesPage() {
           ? "partial"
           : "unpaid";
 
-      const { error } = await supabase
-        .from("payments")
-        .update({
-          paid_amount: nextPaid,
-          status: nextStatus,
-          paid_at: pDate ? new Date(pDate).toISOString() : new Date().toISOString(),
-          payment_method: pMethod,
-          receipt_number:
-            payingItem.receipt_number || generateReceiptNumber(),
-          notes: pNotes.trim(),
-          recorded_by: user.id,
-        })
-        .eq("id", payingItem.id);
-
-      if (error) {
-        showToast(error.message, "error");
-        return;
-      }
+      await updatePayment(payingItem.id, {
+        paid_amount: nextPaid,
+        status: nextStatus,
+        paid_at: pDate ? new Date(pDate).toISOString() : new Date().toISOString(),
+        payment_method: pMethod,
+        receipt_number:
+          payingItem.receipt_number || generateReceiptNumber(),
+        notes: pNotes.trim(),
+        recorded_by: user.id,
+      });
       showToast(t.common.successSave, "success");
       setPayingItem(null);
       await refreshFees();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setSavingPay(false);
     }
@@ -362,21 +349,14 @@ export default function FeesPage() {
 
   const handleDelete = async () => {
     if (!deletingId) return;
-    const supabase = createClient();
-    if (!supabase) return;
     setDeleting(true);
     try {
-      const { error } = await supabase
-        .from("payments")
-        .delete()
-        .eq("id", deletingId);
-      if (error) {
-        showToast(error.message, "error");
-        return;
-      }
+      await deletePayment(deletingId);
       showToast(t.common.successDelete, "success");
       setDeletingId(null);
       await refreshFees();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setDeleting(false);
     }
@@ -388,27 +368,21 @@ export default function FeesPage() {
   );
 
   const handleQuickPayFull = async (item: Payment) => {
-    const supabase = createClient();
-    if (!supabase || !user) return;
+    if (!user) return;
     setQuickPayId(item.id);
     try {
-      const { error } = await supabase
-        .from("payments")
-        .update({
-          paid_amount: Number(item.amount),
-          status: "paid" as PaymentStatus,
-          paid_at: new Date().toISOString(),
-          payment_method: "transfer" as PaymentMethod,
-          receipt_number: item.receipt_number || generateReceiptNumber(),
-          recorded_by: user.id,
-        })
-        .eq("id", item.id);
-      if (error) {
-        showToast(error.message, "error");
-        return;
-      }
+      await updatePayment(item.id, {
+        paid_amount: Number(item.amount),
+        status: "paid" as PaymentStatus,
+        paid_at: new Date().toISOString(),
+        payment_method: "transfer" as PaymentMethod,
+        receipt_number: item.receipt_number || generateReceiptNumber(),
+        recorded_by: user.id,
+      });
       showToast(t.common.successSave, "success");
       await refreshFees();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setQuickPayId(null);
     }
@@ -416,34 +390,26 @@ export default function FeesPage() {
 
   const handleBatchPayVisible = async () => {
     setConfirmFeeAction(null);
-    if (unpaidFiltered.length === 0) return;
-    const supabase = createClient();
-    if (!supabase || !user) return;
+    if (unpaidFiltered.length === 0 || !user) return;
     setBatchPaying(true);
     try {
       const now = new Date().toISOString();
-      const results = await Promise.all(
+      await Promise.all(
         unpaidFiltered.map((p) =>
-          supabase
-            .from("payments")
-            .update({
-              paid_amount: Number(p.amount),
-              status: "paid" as PaymentStatus,
-              paid_at: now,
-              payment_method: "transfer" as PaymentMethod,
-              receipt_number: p.receipt_number || generateReceiptNumber(),
-              recorded_by: user.id,
-            })
-            .eq("id", p.id)
+          updatePayment(p.id, {
+            paid_amount: Number(p.amount),
+            status: "paid" as PaymentStatus,
+            paid_at: now,
+            payment_method: "transfer" as PaymentMethod,
+            receipt_number: p.receipt_number || generateReceiptNumber(),
+            recorded_by: user.id,
+          })
         )
       );
-      const firstErr = results.find((r) => r.error)?.error;
-      if (firstErr) {
-        showToast(firstErr.message, "error");
-        return;
-      }
       showToast(t.common.successSave, "success");
       await refreshFees();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : t.common.errorGeneric, "error");
     } finally {
       setBatchPaying(false);
     }
@@ -793,273 +759,92 @@ export default function FeesPage() {
         </div>
       </div>
 
-      {/* Create Bill Modal */}
-      <Modal
+      <CreateBillModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        title={t.fees.addPayment}
-        maxWidth="md"
-      >
-        <form onSubmit={handleCreateBill} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {t.common.member} *
-            </label>
-            <select
-              required
-              value={fMemberId}
-              onChange={(e) => {
-                setFMemberId(e.target.value);
-                const mem = members.find((m) => m.id === e.target.value);
-                if (mem?.room && fType === "room_fee") {
-                  setFAmount(Number(mem.room.monthly_fee));
-                }
-              }}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            >
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.student_code} — {m.full_name} (
-                  {m.room?.room_number ?? t.members.unassigned})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.fees.billingMonth}
-              </label>
-              <input
-                type="month"
-                required
-                value={fMonth}
-                onChange={(e) => setFMonth(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.fees.feeType}
-              </label>
-              <select
-                value={fType}
-                onChange={(e) => setFType(e.target.value as FeeType)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              >
-                <option value="room_fee">{t.fees.typeRoom}</option>
-                <option value="water">{t.fees.typeWater}</option>
-                <option value="electricity">{t.fees.typeElectricity}</option>
-                <option value="fine">{t.fees.typeFine}</option>
-                <option value="other">{t.fees.typeOther}</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.fees.amount}
-              </label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                required
-                value={fAmount}
-                onChange={(e) => setFAmount(Number(e.target.value))}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t.fees.dueDate}
-              </label>
-              <input
-                type="date"
-                value={fDueDate}
-                onChange={(e) => setFDueDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {t.common.notes}
-            </label>
-            <textarea
-              rows={2}
-              value={fNotes}
-              onChange={(e) => setFNotes(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setAddOpen(false)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm"
-            >
-              {t.common.cancel}
-            </button>
-            <button
-              type="submit"
-              disabled={savingBill}
-              className="rounded-xl bg-navy-600 px-5 py-2 text-sm font-semibold text-white hover:bg-navy-700"
-            >
-              {savingBill ? t.common.saving : t.common.save}
-            </button>
-          </div>
-        </form>
-      </Modal>
+        members={members}
+        fMemberId={fMemberId}
+        setFMemberId={setFMemberId}
+        fMonth={fMonth}
+        setFMonth={setFMonth}
+        fType={fType}
+        setFType={setFType}
+        fAmount={fAmount}
+        setFAmount={setFAmount}
+        fDueDate={fDueDate}
+        setFDueDate={setFDueDate}
+        fNotes={fNotes}
+        setFNotes={setFNotes}
+        savingBill={savingBill}
+        onSubmit={handleCreateBill}
+        labels={{
+          addPayment: t.fees.addPayment,
+          member: t.common.member,
+          unassigned: t.members.unassigned,
+          billingMonth: t.fees.billingMonth,
+          feeType: t.fees.feeType,
+          typeRoom: t.fees.typeRoom,
+          typeWater: t.fees.typeWater,
+          typeElectricity: t.fees.typeElectricity,
+          typeFine: t.fees.typeFine,
+          typeOther: t.fees.typeOther,
+          amount: t.fees.amount,
+          dueDate: t.fees.dueDate,
+          notes: t.common.notes,
+          cancel: t.common.cancel,
+          save: t.common.save,
+          saving: t.common.saving,
+        }}
+      />
 
-      {/* Record Payment Modal */}
-      <Modal
-        open={Boolean(payingItem)}
+      <RecordPaymentModal
+        payingItem={payingItem}
         onClose={() => setPayingItem(null)}
-        title={t.fees.recordPayment}
-        subtitle={payingItem?.member?.full_name}
-        maxWidth="sm"
-      >
-        <form onSubmit={handleRecordPayment} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {t.fees.amount}
-            </label>
-            <input
-              type="number"
-              min={1}
-              step="0.01"
-              required
-              value={pAmount}
-              onChange={(e) => setPAmount(Number(e.target.value))}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {t.fees.paymentMethod}
-            </label>
-            <select
-              value={pMethod}
-              onChange={(e) => setPMethod(e.target.value as PaymentMethod)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            >
-              <option value="transfer">{t.fees.methodTransfer}</option>
-              <option value="cash">{t.fees.methodCash}</option>
-              <option value="qr">{t.fees.methodQr}</option>
-              <option value="other">{t.fees.methodOther}</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {t.fees.paidAt}
-            </label>
-            <input
-              type="datetime-local"
-              value={pDate}
-              onChange={(e) => setPDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {t.common.notes}
-            </label>
-            <input
-              type="text"
-              value={pNotes}
-              onChange={(e) => setPNotes(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setPayingItem(null)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm"
-            >
-              {t.common.cancel}
-            </button>
-            <button
-              type="submit"
-              disabled={savingPay}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              {savingPay ? t.common.saving : t.common.confirm}
-            </button>
-          </div>
-        </form>
-      </Modal>
+        pAmount={pAmount}
+        setPAmount={setPAmount}
+        pMethod={pMethod}
+        setPMethod={setPMethod}
+        pDate={pDate}
+        setPDate={setPDate}
+        pNotes={pNotes}
+        setPNotes={setPNotes}
+        savingPay={savingPay}
+        onSubmit={handleRecordPayment}
+        labels={{
+          recordPayment: t.fees.recordPayment,
+          amount: t.fees.amount,
+          paymentMethod: t.fees.paymentMethod,
+          methodTransfer: t.fees.methodTransfer,
+          methodCash: t.fees.methodCash,
+          methodQr: t.fees.methodQr,
+          methodOther: t.fees.methodOther,
+          paidAt: t.fees.paidAt,
+          notes: t.common.notes,
+          cancel: t.common.cancel,
+          confirm: t.common.confirm,
+          saving: t.common.saving,
+        }}
+      />
 
-      {/* Printable Receipt Modal */}
-      {receiptItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 print:static print:bg-white print:p-0">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 print:shadow-none print:border-0">
-            <div className="text-center border-b border-slate-200 pb-4">
-              <h2 className="text-lg font-bold text-navy-900">
-                {t.fees.receiptTitle}
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">{t.appName}</p>
-              <p className="text-xs font-mono text-navy-700 mt-1">
-                {t.fees.receiptNumber}: {receiptItem.receipt_number || "-"}
-              </p>
-            </div>
-            <div className="py-4 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t.common.member}:</span>
-                <span className="font-semibold">
-                  {receiptItem.member?.full_name} (
-                  {receiptItem.member?.student_code})
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t.common.room}:</span>
-                <span className="font-semibold">
-                  {receiptItem.member?.room
-                    ? `${receiptItem.member.room.building?.name ?? ""} / ${receiptItem.member.room.room_number}`
-                    : "-"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t.fees.billingMonth}:</span>
-                <span className="font-semibold">{receiptItem.billing_month}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t.fees.feeType}:</span>
-                <span className="font-semibold">
-                  {feeTypeLabel(receiptItem.fee_type)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">{t.fees.paidAt}:</span>
-                <span>{formatDate(receiptItem.paid_at, lang)}</span>
-              </div>
-              <div className="flex justify-between border-t border-slate-200 pt-3 mt-2 text-base font-bold text-emerald-700">
-                <span>{t.fees.paidAmount}:</span>
-                <span>
-                  {formatCurrency(Number(receiptItem.paid_amount), lang)}
-                </span>
-              </div>
-            </div>
-            <div className="no-print flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setReceiptItem(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm"
-              >
-                {t.common.close}
-              </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-navy-600 px-4 py-2 text-sm font-semibold text-white hover:bg-navy-700"
-              >
-                <Printer className="h-4 w-4" />
-                {t.common.printPdf}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ReceiptModal
+        receiptItem={receiptItem}
+        onClose={() => setReceiptItem(null)}
+        lang={lang}
+        feeTypeLabel={feeTypeLabel}
+        labels={{
+          receiptTitle: t.fees.receiptTitle,
+          appName: t.appName,
+          receiptNumber: t.fees.receiptNumber,
+          member: t.common.member,
+          room: t.common.room,
+          billingMonth: t.fees.billingMonth,
+          feeType: t.fees.feeType,
+          paidAt: t.fees.paidAt,
+          paidAmount: t.fees.paidAmount,
+          close: t.common.close,
+          printPdf: t.common.printPdf,
+        }}
+      />
 
       <ConfirmDialog
         open={Boolean(deletingId)}

@@ -341,84 +341,102 @@ CREATE POLICY "profiles_manage_admin" ON public.profiles
   FOR UPDATE USING (public.current_user_role() = 'admin' AND role <> 'super_admin')
   WITH CHECK (public.current_user_role() = 'admin' AND role IN ('admin', 'staff'));
 
--- BUILDINGS policies (Any authenticated user can manage buildings freely)
+-- BUILDINGS policies (Read: active users | Write: admin / super_admin)
 DROP POLICY IF EXISTS "buildings_select" ON public.buildings;
-CREATE POLICY "buildings_select" ON public.buildings FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "buildings_select" ON public.buildings FOR SELECT USING (public.is_active_user());
 
 DROP POLICY IF EXISTS "buildings_write_admin" ON public.buildings;
 CREATE POLICY "buildings_write_admin" ON public.buildings
-  FOR ALL USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+  FOR ALL USING (public.current_user_role() IN ('super_admin', 'admin'))
+  WITH CHECK (public.current_user_role() IN ('super_admin', 'admin'));
 
--- ROOMS policies
+-- ROOMS policies (Read: active users | Write: admin / super_admin)
 DROP POLICY IF EXISTS "rooms_select" ON public.rooms;
-CREATE POLICY "rooms_select" ON public.rooms FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "rooms_select" ON public.rooms FOR SELECT USING (public.is_active_user());
 
 DROP POLICY IF EXISTS "rooms_write_admin" ON public.rooms;
 CREATE POLICY "rooms_write_admin" ON public.rooms
-  FOR ALL USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+  FOR ALL USING (public.current_user_role() IN ('super_admin', 'admin'))
+  WITH CHECK (public.current_user_role() IN ('super_admin', 'admin'));
 
--- MEMBERS policies
+-- MEMBERS policies (Read/Insert/Update: active users | Delete: admin / super_admin)
 DROP POLICY IF EXISTS "members_select" ON public.members;
-CREATE POLICY "members_select" ON public.members FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "members_select" ON public.members FOR SELECT USING (public.is_active_user());
 
 DROP POLICY IF EXISTS "members_write_admin" ON public.members;
-CREATE POLICY "members_write_admin" ON public.members
-  FOR ALL USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS "members_insert_active" ON public.members;
+CREATE POLICY "members_insert_active" ON public.members
+  FOR INSERT WITH CHECK (public.is_active_user());
+
+DROP POLICY IF EXISTS "members_update_active" ON public.members;
+CREATE POLICY "members_update_active" ON public.members
+  FOR UPDATE USING (public.is_active_user())
+  WITH CHECK (public.is_active_user());
+
+DROP POLICY IF EXISTS "members_delete_admin" ON public.members;
+CREATE POLICY "members_delete_admin" ON public.members
+  FOR DELETE USING (public.current_user_role() IN ('super_admin', 'admin'));
 
 -- ATTENDANCE_LOGS policies
 DROP POLICY IF EXISTS "attendance_select" ON public.attendance_logs;
-CREATE POLICY "attendance_select" ON public.attendance_logs FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "attendance_select" ON public.attendance_logs FOR SELECT USING (public.is_active_user());
 
 DROP POLICY IF EXISTS "attendance_insert_staff" ON public.attendance_logs;
 CREATE POLICY "attendance_insert_staff" ON public.attendance_logs
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+  FOR INSERT WITH CHECK (public.is_active_user());
 
 DROP POLICY IF EXISTS "attendance_update_staff" ON public.attendance_logs;
 CREATE POLICY "attendance_update_staff" ON public.attendance_logs
-  FOR UPDATE USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+  FOR UPDATE USING (public.is_active_user())
+  WITH CHECK (public.is_active_user());
 
 DROP POLICY IF EXISTS "attendance_delete_admin" ON public.attendance_logs;
 CREATE POLICY "attendance_delete_admin" ON public.attendance_logs
-  FOR DELETE USING (auth.uid() IS NOT NULL);
+  FOR DELETE USING (public.current_user_role() IN ('super_admin', 'admin'));
 
--- PAYMENTS policies
+-- PAYMENTS policies (Read/Insert/Update: active users | Delete: admin / super_admin)
 DROP POLICY IF EXISTS "payments_select" ON public.payments;
-CREATE POLICY "payments_select" ON public.payments FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "payments_select" ON public.payments FOR SELECT USING (public.is_active_user());
 
 DROP POLICY IF EXISTS "payments_write_admin" ON public.payments;
-CREATE POLICY "payments_write_admin" ON public.payments
-  FOR ALL USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS "payments_insert_active" ON public.payments;
+CREATE POLICY "payments_insert_active" ON public.payments
+  FOR INSERT WITH CHECK (public.is_active_user());
+
+DROP POLICY IF EXISTS "payments_update_active" ON public.payments;
+CREATE POLICY "payments_update_active" ON public.payments
+  FOR UPDATE USING (public.is_active_user())
+  WITH CHECK (public.is_active_user());
+
+DROP POLICY IF EXISTS "payments_delete_admin" ON public.payments;
+CREATE POLICY "payments_delete_admin" ON public.payments
+  FOR DELETE USING (public.current_user_role() IN ('super_admin', 'admin'));
 
 -- VIOLATIONS policies
 DROP POLICY IF EXISTS "violations_select" ON public.violations;
-CREATE POLICY "violations_select" ON public.violations FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "violations_select" ON public.violations FOR SELECT USING (public.is_active_user());
 
 DROP POLICY IF EXISTS "violations_insert_staff" ON public.violations;
 CREATE POLICY "violations_insert_staff" ON public.violations
-  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+  FOR INSERT WITH CHECK (public.is_active_user());
 
 DROP POLICY IF EXISTS "violations_update_staff" ON public.violations;
 CREATE POLICY "violations_update_staff" ON public.violations
-  FOR UPDATE USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+  FOR UPDATE USING (public.is_active_user())
+  WITH CHECK (public.is_active_user());
 
 DROP POLICY IF EXISTS "violations_delete_admin" ON public.violations;
 CREATE POLICY "violations_delete_admin" ON public.violations
-  FOR DELETE USING (auth.uid() IS NOT NULL);
+  FOR DELETE USING (public.current_user_role() IN ('super_admin', 'admin'));
 
--- ANNOUNCEMENTS policies
+-- ANNOUNCEMENTS policies (Read: active users | Write: admin / super_admin)
 DROP POLICY IF EXISTS "announcements_select" ON public.announcements;
-CREATE POLICY "announcements_select" ON public.announcements FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "announcements_select" ON public.announcements FOR SELECT USING (public.is_active_user());
 
 DROP POLICY IF EXISTS "announcements_write_admin" ON public.announcements;
 CREATE POLICY "announcements_write_admin" ON public.announcements
-  FOR ALL USING (auth.uid() IS NOT NULL)
-  WITH CHECK (auth.uid() IS NOT NULL);
+  FOR ALL USING (public.current_user_role() IN ('super_admin', 'admin'))
+  WITH CHECK (public.current_user_role() IN ('super_admin', 'admin'));
 
 -- ============================================================================
 -- 4. STORAGE BUCKET FOR AVATARS & VIOLATION EVIDENCE
@@ -434,15 +452,15 @@ CREATE POLICY "dorm_files_public_read" ON storage.objects
 
 DROP POLICY IF EXISTS "dorm_files_auth_upload" ON storage.objects;
 CREATE POLICY "dorm_files_auth_upload" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = 'dorm-files' AND auth.uid() IS NOT NULL);
+  FOR INSERT WITH CHECK (bucket_id = 'dorm-files' AND public.is_active_user());
 
 DROP POLICY IF EXISTS "dorm_files_auth_update" ON storage.objects;
 CREATE POLICY "dorm_files_auth_update" ON storage.objects
-  FOR UPDATE USING (bucket_id = 'dorm-files' AND auth.uid() IS NOT NULL);
+  FOR UPDATE USING (bucket_id = 'dorm-files' AND public.is_active_user());
 
 DROP POLICY IF EXISTS "dorm_files_admin_delete" ON storage.objects;
 CREATE POLICY "dorm_files_admin_delete" ON storage.objects
-  FOR DELETE USING (bucket_id = 'dorm-files' AND auth.uid() IS NOT NULL);
+  FOR DELETE USING (bucket_id = 'dorm-files' AND public.current_user_role() IN ('super_admin', 'admin'));
 
 -- ============================================================================
 -- 5. GRANTS & BACKFILL (Required so Supabase API roles can access tables under RLS)
