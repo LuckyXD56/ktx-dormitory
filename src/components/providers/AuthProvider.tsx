@@ -96,7 +96,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
           // Ignore
         }
-        if (prof.preferred_language === "th" || prof.preferred_language === "vi") {
+        if (
+          prof.preferred_language === "th" ||
+          prof.preferred_language === "vi" ||
+          prof.preferred_language === "en" ||
+          prof.preferred_language === "zh" ||
+          prof.preferred_language === "lo"
+        ) {
           const saved = window.localStorage.getItem("dorm_app_lang");
           if (!saved) {
             setLang(prof.preferred_language);

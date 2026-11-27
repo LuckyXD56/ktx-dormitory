@@ -9,7 +9,6 @@ import {
   Building2,
   ClipboardCheck,
   CreditCard,
-  Globe,
   LayoutDashboard,
   LogOut,
   Search,
@@ -51,7 +50,9 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useI18n } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { pickLang, useI18n } from "@/lib/i18n";
+import type { Language } from "@/types/database";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -284,8 +285,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [profile, loadAlerts]);
 
-  const handleToggleLanguage = async () => {
-    const next = lang === "th" ? "vi" : "th";
+  const handleSelectLanguage = async (next: Language) => {
     setLang(next);
     const supabase = createClient();
     if (supabase && profile) {
@@ -656,7 +656,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Search className="h-3.5 w-3.5 text-slate-400" />
               <span className="hidden sm:inline">
-                {lang === "vi" ? "Tìm nhanh" : "ค้นหาด่วน"}
+                {pickLang(lang, {
+                  th: "ค้นหาด่วน",
+                  vi: "Tìm nhanh",
+                  en: "Quick Search",
+                  zh: "快速搜索",
+                  lo: "ຄົ້ນຫາດ່ວນ",
+                })}
               </span>
               <kbd className="hidden lg:inline-block rounded border border-slate-200 bg-white px-1 py-0.2 text-[10px] text-slate-400">
                 Ctrl K
@@ -714,15 +720,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {t.nav.members}
             </Link>
 
-            <button
-              type="button"
-              onClick={handleToggleLanguage}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-navy-900 hover:bg-navy-50 hover:border-navy-200 transition-colors"
-              title="Switch Language (TH / VI)"
-            >
-              <Globe className="h-3.5 w-3.5 text-navy-600" />
-              <span>{lang === "th" ? "🇹🇭 ไทย" : "🇻🇳 Tiếng Việt"}</span>
-            </button>
+            <LanguageSwitcher
+              variant="dropdown"
+              compactOnMobile
+              onSelect={handleSelectLanguage}
+            />
 
             <div className="relative">
               <button
@@ -837,15 +839,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold">
-                {lang === "vi"
-                  ? "Chưa thể tải hồ sơ quyền hạn từ Supabase"
-                  : "ไม่สามารถโหลดสิทธิ์ผู้ใช้งานจาก Supabase ได้"}
-                {" "}({profileError})
+                {pickLang(lang, {
+                  th: "ไม่สามารถโหลดสิทธิ์ผู้ใช้งานจาก Supabase ได้",
+                  vi: "Chưa thể tải hồ sơ quyền hạn từ Supabase",
+                  en: "Unable to load user permissions from Supabase",
+                  zh: "无法从 Supabase 加载用户权限档案",
+                  lo: "ບໍ່ສາມາດໂຫຼດສິດຜູ້ໃຊ້ງານຈາກ Supabase ໄດ້",
+                })}{" "}
+                ({profileError})
               </p>
               <p className="text-xs text-rose-700 mt-0.5">
-                {lang === "vi"
-                  ? "Vui lòng chạy phần GRANT SQL ở cuối file supabase/schema.sql trong Supabase SQL Editor rồi tải lại trang."
-                  : "กรุณารันคำสั่ง GRANT ในส่วนท้ายของไฟล์ supabase/schema.sql ใน Supabase SQL Editor แล้วกด Refresh (F5) ครับ"}
+                {pickLang(lang, {
+                  th: "กรุณารันคำสั่ง GRANT ในส่วนท้ายของไฟล์ supabase/schema.sql ใน Supabase SQL Editor แล้วกด Refresh (F5) ครับ",
+                  vi: "Vui lòng chạy phần GRANT SQL ở cuối file supabase/schema.sql trong Supabase SQL Editor rồi tải lại trang.",
+                  en: "Please run the GRANT SQL statements at the bottom of supabase/schema.sql in the Supabase SQL Editor, then refresh.",
+                  zh: "请在 Supabase SQL Editor 中运行 supabase/schema.sql 末尾的 GRANT SQL 语句并刷新页面。",
+                  lo: "ກະລຸນາລັນຄຳສັ່ງ GRANT ໃນສ່ວນທ້າຍຂອງໄຟລ໌ supabase/schema.sql ໃນ Supabase SQL Editor ແລ້ວໂຫຼດໜ້າໃໝ່",
+                })}
               </p>
             </div>
           </div>

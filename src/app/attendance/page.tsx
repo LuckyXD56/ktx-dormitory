@@ -27,7 +27,7 @@ import { Select } from "@/components/ui/select";
 import { CardGridSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
-import { useI18n } from "@/lib/i18n";
+import { pickLang, useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { listAttendanceLogs, listBuildings, listMembers } from "@/services";
 import {
@@ -341,7 +341,13 @@ export default function AttendancePage() {
         log_type: "check_in" as AttendanceLogType,
         recorded_at: now,
         is_late: false,
-        notes: lang === "vi" ? "Điểm danh hàng loạt" : "เช็กชื่อเข้าหอแบบกลุ่ม",
+        notes: pickLang(lang, {
+          th: "เช็กชื่อเข้าหอแบบกลุ่ม",
+          vi: "Điểm danh hàng loạt",
+          en: "Batch check-in",
+          zh: "批量签到",
+          lo: "ເຊັກຊື່ເຂົ້າຫໍແບບກຸ່ມ",
+        }),
         recorded_by: user.id,
       }));
       const { error } = await supabase.from("attendance_logs").insert(rows);
@@ -408,9 +414,13 @@ export default function AttendancePage() {
                 ) : (
                   <CheckCircle2 className="h-3.5 w-3.5" />
                 )}
-                {lang === "vi"
-                  ? `Điểm danh về hết (${notReturnedMembers.length})`
-                  : `เช็กเข้าหอทั้งหมด (${notReturnedMembers.length})`}
+                {pickLang(lang, {
+                  th: `เช็กเข้าหอทั้งหมด (${notReturnedMembers.length})`,
+                  vi: `Điểm danh về hết (${notReturnedMembers.length})`,
+                  en: `Check In All (${notReturnedMembers.length})`,
+                  zh: `全部签到 (${notReturnedMembers.length})`,
+                  lo: `ເຊັກເຂົ້າຫໍທັງໝົດ (${notReturnedMembers.length})`,
+                })}
               </Button>
             )}
           </div>
@@ -774,11 +784,13 @@ export default function AttendancePage() {
         loading={batchCheckingIn}
         tone="primary"
         title={t.attendance.quickRollCall}
-        description={
-          lang === "vi"
-            ? `Xác nhận điểm danh về KTX cho tất cả ${notReturnedMembers.length} thành viên chưa về?`
-            : `ยืนยันเช็กชื่อกลับเข้าหอพร้อมกันทั้งหมด ${notReturnedMembers.length} คน?`
-        }
+        description={pickLang(lang, {
+          th: `ยืนยันเช็กชื่อกลับเข้าหอพร้อมกันทั้งหมด ${notReturnedMembers.length} คน?`,
+          vi: `Xác nhận điểm danh về KTX cho tất cả ${notReturnedMembers.length} thành viên chưa về?`,
+          en: `Confirm checking in all ${notReturnedMembers.length} unreturned residents?`,
+          zh: `确认将全部 ${notReturnedMembers.length} 名未归学生登记为已返寝？`,
+          lo: `ຢືນຢັນເຊັກຊື່ກັບເຂົ້າຫໍພ້ອມກັນທັງໝົດ ${notReturnedMembers.length} ຄົນ?`,
+        })}
       />
     </AppShell>
   );

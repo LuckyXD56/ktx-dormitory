@@ -25,7 +25,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
-import { useI18n } from "@/lib/i18n";
+import { pickLang, useI18n } from "@/lib/i18n";
 import {
   createPayment,
   createPaymentsBatch,
@@ -462,9 +462,13 @@ export default function FeesPage() {
                   ) : (
                     <CheckCircle2 className="h-4 w-4" />
                   )}
-                  {lang === "vi"
-                    ? `Thu đủ (${unpaidFiltered.length})`
-                    : `รับชำระทั้งหมด (${unpaidFiltered.length})`}
+                  {pickLang(lang, {
+                    th: `รับชำระทั้งหมด (${unpaidFiltered.length})`,
+                    vi: `Thu đủ (${unpaidFiltered.length})`,
+                    en: `Collect All (${unpaidFiltered.length})`,
+                    zh: `全部收齐 (${unpaidFiltered.length})`,
+                    lo: `ຮັບຊຳລະທັງໝົດ (${unpaidFiltered.length})`,
+                  })}
                 </Button>
               )}
               <Button
@@ -618,7 +622,13 @@ export default function FeesPage() {
                             className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            {lang === "vi" ? "Đủ" : "จ่ายครบ"}
+                            {pickLang(lang, {
+                              th: "จ่ายครบ",
+                              vi: "Đủ",
+                              en: "Full Pay",
+                              zh: "全额缴清",
+                              lo: "ຈ່າຍຄົບ",
+                            })}
                           </button>
                           <button
                             type="button"
@@ -706,11 +716,13 @@ export default function FeesPage() {
                                 type="button"
                                 disabled={quickPayId === p.id}
                                 onClick={() => handleQuickPayFull(p)}
-                                title={
-                                  lang === "vi"
-                                    ? "Thanh toán đủ ngay"
-                                    : "รับชำระครบจำนวนทันที"
-                                }
+                                title={pickLang(lang, {
+                                  th: "รับชำระครบจำนวนทันที",
+                                  vi: "Thanh toán đủ ngay",
+                                  en: "Mark as paid in full now",
+                                  zh: "立即标记为全额缴清",
+                                  lo: "ຮັບຊຳລະຄົບຈຳນວນທັນທີ",
+                                })}
                                 className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
                               >
                                 {quickPayId === p.id ? (
@@ -718,7 +730,13 @@ export default function FeesPage() {
                                 ) : (
                                   <CheckCircle2 className="h-3.5 w-3.5" />
                                 )}
-                                {lang === "vi" ? "Đủ" : "จ่ายครบ"}
+                                {pickLang(lang, {
+                              th: "จ่ายครบ",
+                              vi: "Đủ",
+                              en: "Full Pay",
+                              zh: "全额缴清",
+                              lo: "ຈ່າຍຄົບ",
+                            })}
                               </button>
                               <button
                                 type="button"
@@ -865,9 +883,13 @@ export default function FeesPage() {
         title={
           confirmFeeAction === "generate"
             ? t.fees.generateMonthly
-            : lang === "vi"
-              ? `Thu đủ (${unpaidFiltered.length})`
-              : `รับชำระทั้งหมด (${unpaidFiltered.length})`
+            : pickLang(lang, {
+                th: `รับชำระทั้งหมด (${unpaidFiltered.length})`,
+                vi: `Thu đủ (${unpaidFiltered.length})`,
+                en: `Collect All (${unpaidFiltered.length})`,
+                zh: `全部收齐 (${unpaidFiltered.length})`,
+                lo: `ຮັບຊຳລະທັງໝົດ (${unpaidFiltered.length})`,
+              })
         }
         description={
           confirmFeeAction === "generate"
@@ -875,9 +897,13 @@ export default function FeesPage() {
                 "{month}",
                 monthFilter || getCurrentMonthYYYYMM()
               )
-            : lang === "vi"
-              ? `Xác nhận đánh dấu ĐÃ THANH TOÁN ĐỦ cho ${unpaidFiltered.length} hóa đơn đang lọc?`
-              : `ยืนยันรับชำระครบจำนวนทั้งหมด ${unpaidFiltered.length} บิลที่แสดงอยู่?`
+            : pickLang(lang, {
+                th: `ยืนยันรับชำระครบจำนวนทั้งหมด ${unpaidFiltered.length} บิลที่แสดงอยู่?`,
+                vi: `Xác nhận đánh dấu ĐÃ THANH TOÁN ĐỦ cho ${unpaidFiltered.length} hóa đơn đang lọc?`,
+                en: `Confirm marking all ${unpaidFiltered.length} filtered bills as PAID IN FULL?`,
+                zh: `确认将当前筛选的 ${unpaidFiltered.length} 笔账单全部标记为已缴清？`,
+                lo: `ຢືນຢັນຮັບຊຳລະຄົບຈຳນວນທັງໝົດ ${unpaidFiltered.length} ບິນທີ່ສະແດງຢູ່?`,
+              })
         }
         confirmLabel={t.common.confirm}
       />

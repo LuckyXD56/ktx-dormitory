@@ -9,7 +9,6 @@ import {
   Eye,
   EyeOff,
   FileSpreadsheet,
-  Globe,
   Loader2,
   Lock,
   Mail,
@@ -17,12 +16,13 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { ConstellationCanvas } from "@/components/auth/ConstellationCanvas";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { createClient } from "@/lib/supabase/client";
-import { useI18n } from "@/lib/i18n";
+import { pickLang, useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/providers/ToastProvider";
 
 export default function LoginPage() {
-  const { t, lang, setLang } = useI18n();
+  const { t, lang } = useI18n();
   const { showToast } = useToast();
   const heroRef = useRef<HTMLElement | null>(null);
   const [email, setEmail] = useState("");
@@ -30,8 +30,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [inactiveNotice, setInactiveNotice] = useState(false);
-
-  const isVi = lang === "vi";
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -80,9 +78,13 @@ export default function LoginPage() {
 
   const handleForgotInfo = () => {
     showToast(
-      isVi
-        ? "Vui lòng liên hệ Quản trị viên KTX (Admin) để được cấp lại mật khẩu."
-        : "กรุณาติดต่อผู้ดูแลระบบหอพัก (Admin) เพื่อขอรีเซ็ตรหัสผ่านใหม่",
+      pickLang(lang, {
+        th: "กรุณาติดต่อผู้ดูแลระบบหอพัก (Admin) เพื่อขอรีเซ็ตรหัสผ่านใหม่",
+        vi: "Vui lòng liên hệ Quản trị viên KTX (Admin) để được cấp lại mật khẩu.",
+        en: "Please contact the Dormitory Admin to reset your password.",
+        zh: "请联系宿舍管理员 (Admin) 重置您的密码。",
+        lo: "ກະລຸນາຕິດຕໍ່ຜູ້ດູແລລະບົບຫໍພັກ (Admin) ເພື່ອຂໍຕັ້ງລະຫັດຜ່ານໃໝ່",
+      }),
       "info"
     );
   };
@@ -92,27 +94,83 @@ export default function LoginPage() {
       icon: Building2,
       accent: "bg-amber-400 text-[#0a2f66]",
       mobileAccent: "bg-amber-50 text-amber-600 border border-amber-200/80",
-      title: isVi ? "Quản lý phòng ở & sinh viên" : "จัดการห้องพักและนักศึกษา",
-      desc: isVi
-        ? "Theo dõi giường trống, tòa nhà và hồ sơ nội trú theo thời gian thực"
-        : "ติดตามเตียงว่าง อาคาร และข้อมูลผู้พักอาศัยแบบเรียลไทม์",
+      title: pickLang(lang, {
+        th: "จัดการห้องพักและนักศึกษา",
+        vi: "Quản lý phòng ở & sinh viên",
+        en: "Rooms & Resident Management",
+        zh: "房间与住宿生管理",
+        lo: "ຈັດການຫ້ອງພັກ ແລະ ນັກສຶກສາ",
+      }),
+      desc: pickLang(lang, {
+        th: "ติดตามเตียงว่าง อาคาร และข้อมูลผู้พักอาศัยแบบเรียลไทม์",
+        vi: "Theo dõi giường trống, tòa nhà và hồ sơ nội trú theo thời gian thực",
+        en: "Track bed availability, buildings, and resident records in real time",
+        zh: "实时掌握空余床位、楼栋分布及住宿生档案",
+        lo: "ຕິດຕາມຕຽງວ່າງ ອາຄານ ແລະ ຂໍ້ມູນຜູ້ພັກອາໄສແບບສົດ",
+      }),
     },
     {
       icon: ClipboardCheck,
       accent: "bg-white text-[#0d4a96]",
       mobileAccent: "bg-blue-50 text-[#0d4a96] border border-blue-200/80",
-      title: isVi ? "Điểm danh & quản lý lệ phí" : "เช็กชื่อเข้า-ออก & ค่าธรรมเนียม",
-      desc: isVi
-        ? "Kiểm soát ra/vào ký túc xá, xuất hóa đơn tháng và in biên lai VND"
-        : "บันทึกเวลาเข้าหอ ออกบิลรายเดือน และพิมพ์ใบเสร็จสกุลเงิน VND",
+      title: pickLang(lang, {
+        th: "เช็กชื่อเข้า-ออก & ค่าธรรมเนียม",
+        vi: "Điểm danh & quản lý lệ phí",
+        en: "Attendance & Fee Billing",
+        zh: "出入考勤与收费管理",
+        lo: "ເຊັກຊື່ເຂົ້າ-ອອກ ແລະ ຄ່າທຳນຽມ",
+      }),
+      desc: pickLang(lang, {
+        th: "บันทึกเวลาเข้าหอ ออกบิลรายเดือน และพิมพ์ใบเสร็จสกุลเงิน VND",
+        vi: "Kiểm soát ra/vào ký túc xá, xuất hóa đơn tháng và in biên lai VND",
+        en: "Log check-ins, generate monthly bills, and print VND receipts",
+        zh: "记录归寝考勤，批量生成月度账单并打印越南盾收据",
+        lo: "ບັນທຶກເວລາເຂົ້າຫໍ ອອກບິນປະຈຳເດືອນ ແລະ ພິມໃບຮັບເງິນ VND",
+      }),
     },
   ];
 
   const moduleChips = [
-    { icon: Building2, label: isVi ? "Phòng & Tòa nhà" : "อาคารและห้องพัก" },
-    { icon: ClipboardCheck, label: isVi ? "Điểm danh" : "เช็กชื่อเข้า-ออก" },
-    { icon: CreditCard, label: isVi ? "Thu phí VND" : "ค่าธรรมเนียม VND" },
-    { icon: FileSpreadsheet, label: isVi ? "Báo cáo" : "รายงาน Excel/PDF" },
+    {
+      icon: Building2,
+      label: pickLang(lang, {
+        th: "อาคารและห้องพัก",
+        vi: "Phòng & Tòa nhà",
+        en: "Buildings & Rooms",
+        zh: "楼栋与房间",
+        lo: "ອາຄານ ແລະ ຫ້ອງພັກ",
+      }),
+    },
+    {
+      icon: ClipboardCheck,
+      label: pickLang(lang, {
+        th: "เช็กชื่อเข้า-ออก",
+        vi: "Điểm danh",
+        en: "Attendance",
+        zh: "出入考勤",
+        lo: "ເຊັກຊື່ເຂົ້າ-ອອກ",
+      }),
+    },
+    {
+      icon: CreditCard,
+      label: pickLang(lang, {
+        th: "ค่าธรรมเนียม VND",
+        vi: "Thu phí VND",
+        en: "VND Billing",
+        zh: "越南盾收费",
+        lo: "ຄ່າທຳນຽມ VND",
+      }),
+    },
+    {
+      icon: FileSpreadsheet,
+      label: pickLang(lang, {
+        th: "รายงาน Excel/PDF",
+        vi: "Báo cáo",
+        en: "Excel / PDF Reports",
+        zh: "Excel / PDF 报表",
+        lo: "ລາຍງານ Excel/PDF",
+      }),
+    },
   ];
 
   return (
@@ -140,31 +198,60 @@ export default function LoginPage() {
           <div className="flex items-center gap-2.5 text-[11px] sm:text-xs font-bold uppercase tracking-[0.16em] text-amber-300">
             <span className="h-[2px] w-6 rounded-full bg-amber-400" />
             <span>
-              {isVi
-                ? "ĐÔ THỊ QUẢN SINH VIÊN • KÝ TÚC XÁ"
-                : "KTX CONTROL • ระบบจัดการหอพัก"}
+              {pickLang(lang, {
+                th: "KTX CONTROL • ระบบจัดการหอพัก",
+                vi: "ĐÔ THỊ QUẢN SINH VIÊN • KÝ TÚC XÁ",
+                en: "DORMITORY CONTROL CENTER",
+                zh: "学生宿舍智慧管理中心",
+                lo: "KTX CONTROL • ລະບົບຈັດການຫໍພັກ",
+              })}
             </span>
           </div>
 
           {/* Main Headline */}
           <div className="space-y-2">
             <h1 className="text-2xl sm:text-4xl lg:text-[40px] font-bold leading-[1.18] tracking-tight text-white">
-              {isVi ? (
-                <>
-                  Hệ thống quản lý{" "}
-                  <span className="text-amber-400">Ký túc xá sinh viên</span>
-                </>
-              ) : (
-                <>
-                  ระบบบริหารจัดการ{" "}
-                  <span className="text-amber-400">หอพักนักศึกษา</span>
-                </>
-              )}
+              {pickLang(lang, {
+                th: (
+                  <>
+                    ระบบบริหารจัดการ{" "}
+                    <span className="text-amber-400">หอพักนักศึกษา</span>
+                  </>
+                ),
+                vi: (
+                  <>
+                    Hệ thống quản lý{" "}
+                    <span className="text-amber-400">Ký túc xá sinh viên</span>
+                  </>
+                ),
+                en: (
+                  <>
+                    Student{" "}
+                    <span className="text-amber-400">Dormitory Management</span>
+                  </>
+                ),
+                zh: (
+                  <>
+                    学生{" "}
+                    <span className="text-amber-400">宿舍综合管理系统</span>
+                  </>
+                ),
+                lo: (
+                  <>
+                    ລະບົບບໍລິຫານຈັດການ{" "}
+                    <span className="text-amber-400">ຫໍພັກນັກສຶກສາ</span>
+                  </>
+                ),
+              })}
             </h1>
             <p className="text-sm sm:text-base text-blue-100/85 font-medium">
-              {isVi
-                ? "Trường Đại học Sư phạm - Đại học Đà Nẵng"
-                : "Trường Đại học Sư phạm - Đại học Đà Nẵng (UED)"}
+              {pickLang(lang, {
+                th: "Trường Đại học Sư phạm - Đại học Đà Nẵng (UED)",
+                vi: "Trường Đại học Sư phạm - Đại học Đà Nẵng",
+                en: "University of Science and Education - The University of Danang",
+                zh: "岘港大学附属师范大学 · 国际学生宿舍",
+                lo: "ມະຫາວິທະຍາໄລສ້າງຄູ - ມະຫາວິທະຍາໄລດານັງ (UED)",
+              })}
             </p>
           </div>
 
@@ -198,7 +285,13 @@ export default function LoginPage() {
           {/* Desktop Module Chips */}
           <div className="hidden lg:block space-y-2 pt-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200/70">
-              {isVi ? "CHỨC NĂNG CHÍNH TRONG HỆ THỐNG" : "โมดูลหลักในระบบ"}
+              {pickLang(lang, {
+                th: "โมดูลหลักในระบบ",
+                vi: "CHỨC NĂNG CHÍNH TRONG HỆ THỐNG",
+                en: "CORE SYSTEM MODULES",
+                zh: "核心系统功能模块",
+                lo: "ໂມດູນຫຼັກໃນລະບົບ",
+              })}
             </p>
             <div className="flex flex-wrap gap-2">
               {moduleChips.map((chip) => {
@@ -218,9 +311,13 @@ export default function LoginPage() {
 
           {/* Desktop Security Notice */}
           <div className="hidden lg:block border-l-2 border-amber-400 pl-3.5 py-0.5 text-xs text-blue-100/80 leading-relaxed">
-            {isVi
-              ? "Đăng nhập bằng tài khoản cán bộ được Quản trị viên cấp quyền. Mọi thao tác đều được đồng bộ và bảo mật theo phân quyền."
-              : "เข้าสู่ระบบด้วยบัญชีเจ้าหน้าที่ที่ได้รับสิทธิ์จากผู้ดูแลระบบเท่านั้น ทุกข้อมูลเชื่อมต่อและป้องกันสิทธิ์ระดับฐานข้อมูล"}
+            {pickLang(lang, {
+              th: "เข้าสู่ระบบด้วยบัญชีเจ้าหน้าที่ที่ได้รับสิทธิ์จากผู้ดูแลระบบเท่านั้น ทุกข้อมูลเชื่อมต่อและป้องกันสิทธิ์ระดับฐานข้อมูล",
+              vi: "Đăng nhập bằng tài khoản cán bộ được Quản trị viên cấp quyền. Mọi thao tác đều được đồng bộ và bảo mật theo phân quyền.",
+              en: "Sign in using an authorized staff account provisioned by an Administrator. All records are encrypted and protected by role-based security.",
+              zh: "仅限使用管理员分配的工作人员账号登录。所有操作均受数据库级权限保护与实时同步。",
+              lo: "ເຂົ້າສູ່ລະບົບດ້ວຍບັນຊີເຈົ້າໜ້າທີ່ທີ່ໄດ້ຮັບສິດຈາກຜູ້ດູແລລະບົບເທົ່ານັ້ນ ຂໍ້ມູນທັງໝົດເຊື່ອມຕໍ່ ແລະ ປົກປ້ອງສິດລະດັບຖານຂໍ້ມູນ",
+            })}
           </div>
         </div>
       </section>
@@ -264,12 +361,22 @@ export default function LoginPage() {
               {/* Greeting */}
               <div className="text-center space-y-1">
                 <h2 className="text-2xl font-bold tracking-tight text-[#0a3673]">
-                  {isVi ? "Chào mừng trở lại" : "ยินดีต้อนรับกลับมา"}
+                  {pickLang(lang, {
+                    th: "ยินดีต้อนรับกลับมา",
+                    vi: "Chào mừng trở lại",
+                    en: "Welcome Back",
+                    zh: "欢迎回来",
+                    lo: "ຍິນດີຕ້ອນຮັບກັບຄືນ",
+                  })}
                 </h2>
                 <p className="text-sm text-slate-500">
-                  {isVi
-                    ? "Đăng nhập vào Hệ thống Quản lý Ký túc xá"
-                    : "เข้าสู่ระบบจัดการหอพักนักศึกษา (KTX)"}
+                  {pickLang(lang, {
+                    th: "เข้าสู่ระบบจัดการหอพักนักศึกษา (KTX)",
+                    vi: "Đăng nhập vào Hệ thống Quản lý Ký túc xá",
+                    en: "Sign in to the Dormitory Management System",
+                    zh: "登录学生宿舍综合管理系统",
+                    lo: "ເຂົ້າສູ່ລະບົບຈັດການຫໍພັກນັກສຶກສາ (KTX)",
+                  })}
                 </p>
               </div>
 
@@ -287,7 +394,13 @@ export default function LoginPage() {
                     htmlFor="login-email"
                     className="block text-xs font-semibold text-slate-700 mb-1.5"
                   >
-                    {isVi ? "Tài khoản / Email" : t.auth.email}
+                    {pickLang(lang, {
+                      th: t.auth.email,
+                      vi: "Tài khoản / Email",
+                      en: "Account / Email",
+                      zh: "账号 / 邮箱",
+                      lo: "ບັນຊີ / ອີເມວ",
+                    })}
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
@@ -319,7 +432,13 @@ export default function LoginPage() {
                       minLength={6}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder={isVi ? "Nhập mật khẩu" : "กรอกรหัสผ่าน"}
+                      placeholder={pickLang(lang, {
+                        th: "กรอกรหัสผ่าน",
+                        vi: "Nhập mật khẩu",
+                        en: "Enter password",
+                        zh: "请输入密码",
+                        lo: "ປ້ອນລະຫັດຜ່ານ",
+                      })}
                       className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:bg-white focus:border-[#0d4b97] focus:outline-none focus:ring-2 focus:ring-[#0d4b97]/15"
                     />
                     <button
@@ -343,7 +462,13 @@ export default function LoginPage() {
                     onClick={handleForgotInfo}
                     className="text-xs font-semibold text-[#0d4b97] hover:text-[#083066] hover:underline"
                   >
-                    {isVi ? "Quên mật khẩu?" : "ลืมรหัสผ่าน?"}
+                    {pickLang(lang, {
+                      th: "ลืมรหัสผ่าน?",
+                      vi: "Quên mật khẩu?",
+                      en: "Forgot password?",
+                      zh: "忘记密码？",
+                      lo: "ລືມລະຫັດຜ່ານ?",
+                    })}
                   </button>
                 </div>
 
@@ -360,22 +485,19 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {/* Language Switcher Pill */}
-              <div className="pt-2 flex flex-col items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setLang(isVi ? "th" : "vi")}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50/90 px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                >
-                  <Globe className="h-3.5 w-3.5 text-[#0d4b97]" />
-                  <span>{isVi ? "Tiếng Việt (vi)" : "ภาษาไทย (th)"}</span>
-                </button>
+              {/* 5-Language Switcher */}
+              <div className="pt-2 flex flex-col items-center gap-2.5">
+                <LanguageSwitcher variant="pills" />
                 <p className="inline-flex items-center gap-1 text-[11px] text-slate-400">
                   <ShieldCheck className="h-3 w-3 text-[#0d4b97]" />
                   <span>
-                    {isVi
-                      ? "Tài khoản do Quản trị viên cấp"
-                      : "เข้าใช้งานเฉพาะบัญชีที่ Admin กำหนดเท่านั้น"}
+                    {pickLang(lang, {
+                      th: "เข้าใช้งานเฉพาะบัญชีที่ Admin กำหนดเท่านั้น",
+                      vi: "Tài khoản do Quản trị viên cấp",
+                      en: "Authorized Admin-provisioned accounts only",
+                      zh: "仅限管理员分配的授权账号登录",
+                      lo: "ເຂົ້າໃຊ້ງານສະເພາະບັນຊີທີ່ Admin ກຳນົດເທົ່ານັ້ນ",
+                    })}
                   </span>
                 </p>
               </div>

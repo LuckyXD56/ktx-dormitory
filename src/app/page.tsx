@@ -35,7 +35,7 @@ import {
   setCached,
   subscribeDormSync,
 } from "@/lib/cache";
-import { useI18n } from "@/lib/i18n";
+import { pickLang, useI18n } from "@/lib/i18n";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { formatCurrency, formatDateTime, getInitials } from "@/lib/utils";
@@ -334,7 +334,13 @@ export default function DashboardPage() {
                   className={`h-3.5 w-3.5 text-slate-500 ${refreshing ? "animate-spin" : ""}`}
                 />
                 <span className="hidden sm:inline">
-                  {lang === "vi" ? "Làm mới" : "รีเฟรช"}
+                  {pickLang(lang, {
+                    th: "รีเฟรช",
+                    vi: "Làm mới",
+                    en: "Refresh",
+                    zh: "刷新",
+                    lo: "ໂຫຼດໃໝ່",
+                  })}
                 </span>
               </button>
               <Link

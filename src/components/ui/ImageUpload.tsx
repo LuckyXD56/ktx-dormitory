@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, Loader2, Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { useI18n } from "@/lib/i18n";
+import { pickLang, useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/providers/ToastProvider";
 
 interface ImageUploadProps {
@@ -35,9 +35,13 @@ export function ImageUpload({
 
     if (!file.type.startsWith("image/")) {
       showToast(
-        lang === "vi"
-          ? "Vui lòng chọn tệp hình ảnh hợp lệ."
-          : "กรุณาเลือกไฟล์รูปภาพที่ถูกต้อง",
+        pickLang(lang, {
+          th: "กรุณาเลือกไฟล์รูปภาพที่ถูกต้อง",
+          vi: "Vui lòng chọn tệp hình ảnh hợp lệ.",
+          en: "Please select a valid image file.",
+          zh: "请选择有效的图片文件。",
+          lo: "ກະລຸນາເລືອກໄຟລ໌ຮູບພາບທີ່ຖືກຕ້ອງ",
+        }),
         "error"
       );
       return;
@@ -45,9 +49,13 @@ export function ImageUpload({
 
     if (file.size > 5 * 1024 * 1024) {
       showToast(
-        lang === "vi"
-          ? "Kích thước ảnh tối đa là 5MB."
-          : "ขนาดไฟล์รูปภาพต้องไม่เกิน 5 MB",
+        pickLang(lang, {
+          th: "ขนาดไฟล์รูปภาพต้องไม่เกิน 5 MB",
+          vi: "Kích thước ảnh tối đa là 5MB.",
+          en: "Image file size must not exceed 5 MB.",
+          zh: "图片文件大小不能超过 5 MB。",
+          lo: "ຂະໜາດໄຟລ໌ຮູບພາບຕ້ອງບໍ່ເກີນ 5 MB",
+        }),
         "error"
       );
       return;

@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Select } from "@/components/ui/select";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
-import { useI18n } from "@/lib/i18n";
+import { LANGUAGE_OPTIONS, pickLang, useI18n } from "@/lib/i18n";
 import { updateOwnPassword, updateSelfProfile } from "@/services";
 import type { Language } from "@/types/database";
 
@@ -163,8 +163,11 @@ export default function ProfilePage() {
                   value={prefLang}
                   onChange={(e) => setPrefLang(e.target.value as Language)}
                 >
-                  <option value="th">🇹🇭 ภาษาไทย (TH)</option>
-                  <option value="vi">🇻🇳 Tiếng Việt (VI)</option>
+                  {LANGUAGE_OPTIONS.map((opt) => (
+                    <option key={opt.code} value={opt.code}>
+                      {opt.flag} {opt.nativeName} ({opt.shortLabel})
+                    </option>
+                  ))}
                 </Select>
               </div>
             </div>
@@ -232,9 +235,13 @@ export default function ProfilePage() {
         </div>
 
         <p className="text-xs text-slate-400">
-          {lang === "vi"
-            ? "Mọi thay đổi được đồng bộ trực tiếp với Supabase Auth & Profiles."
-            : "การเปลี่ยนแปลงทั้งหมดเชื่อมต่อและซิงค์โดยตรงกับ Supabase Auth & Profiles"}
+          {pickLang(lang, {
+            th: "การเปลี่ยนแปลงทั้งหมดเชื่อมต่อและซิงค์โดยตรงกับ Supabase Auth & Profiles",
+            vi: "Mọi thay đổi được đồng bộ trực tiếp với Supabase Auth & Profiles.",
+            en: "All changes sync directly with Supabase Auth & Profiles.",
+            zh: "所有更改将直接同步至 Supabase Auth 与个人资料。",
+            lo: "ການປ່ຽນແປງທັງໝົດຈະຊິງຄ໌ໂດຍກົງກັບ Supabase Auth & Profiles",
+          })}
         </p>
       </div>
     </AppShell>

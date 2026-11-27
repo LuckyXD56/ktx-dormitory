@@ -1,17 +1,22 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { Language } from "@/types/database";
+import { LANGUAGE_MAP } from "@/lib/i18n/languages";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+function getIntlLocale(lang: Language): string {
+  return LANGUAGE_MAP[lang]?.intlLocale ?? "th-TH";
+}
+
 export function formatCurrency(amount: number, lang: Language = "th"): string {
-  const formatted = new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "th-TH", {
+  const formatted = new Intl.NumberFormat(getIntlLocale(lang), {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(Math.round(amount || 0));
-  return `${formatted} ${lang === "vi" ? "VND" : "₫"}`;
+  return `${formatted} ${lang === "th" ? "₫" : "VND"}`;
 }
 
 export function formatDate(
@@ -21,7 +26,7 @@ export function formatDate(
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(lang === "vi" ? "vi-VN" : "th-TH", {
+  return new Intl.DateTimeFormat(getIntlLocale(lang), {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -35,7 +40,7 @@ export function formatDateTime(
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(lang === "vi" ? "vi-VN" : "th-TH", {
+  return new Intl.DateTimeFormat(getIntlLocale(lang), {
     year: "numeric",
     month: "short",
     day: "numeric",

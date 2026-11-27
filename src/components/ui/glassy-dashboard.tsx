@@ -9,6 +9,8 @@ import {
   useRef,
   type MouseEvent,
 } from "react";
+import type { Language } from "@/types/database";
+import { pickLang } from "@/lib/i18n/languages";
 import {
   ArrowDownRight,
   ArrowLeft,
@@ -59,7 +61,7 @@ export type DormWorkItem = {
 };
 
 export interface DormGlassyData {
-  lang: "th" | "vi";
+  lang: Language;
   totalCollected: number;
   totalBilled: number;
   totalOutstanding: number;
@@ -1591,13 +1593,18 @@ function Activity({
     status: string;
     time: string;
   }[];
-  lang?: "th" | "vi";
+  lang?: Language;
 }) {
   const sourceRows = rows ?? [...recentActivity];
+  const l: Language = lang ?? "th";
   const allLabel = rows
-    ? lang === "vi"
-      ? "Tất cả trạng thái"
-      : "ทุกสถานะ"
+    ? pickLang(l, {
+        th: "ทุกสถานะ",
+        vi: "Tất cả trạng thái",
+        en: "All statuses",
+        zh: "全部状态",
+        lo: "ທຸກສະຖານະ",
+      })
     : "All statuses";
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState(allLabel);
@@ -1618,14 +1625,17 @@ function Activity({
       (status === allLabel || item.status === status)
   );
 
-  const isVi = lang === "vi";
   return (
     <Panel
       title={
         rows
-          ? isVi
-            ? "Hoạt động gần đây"
-            : "ความเคลื่อนไหวล่าสุด"
+          ? pickLang(l, {
+              th: "ความเคลื่อนไหวล่าสุด",
+              vi: "Hoạt động gần đây",
+              en: "Recent activity",
+              zh: "近期动态",
+              lo: "ຄວາມເຄື່ອນໄຫວຫຼ້າສຸດ",
+            })
           : "Recent activity"
       }
       className="gd-activity"
@@ -1637,9 +1647,13 @@ function Activity({
               type="search"
               placeholder={
                 rows
-                  ? isVi
-                    ? "Tìm hoạt động"
-                    : "ค้นหากิจกรรม"
+                  ? pickLang(l, {
+                      th: "ค้นหากิจกรรม",
+                      vi: "Tìm hoạt động",
+                      en: "Search activity",
+                      zh: "搜索动态",
+                      lo: "ຄົ້ນຫາກິດຈະກຳ",
+                    })
                   : "Search activity"
               }
               aria-label="Search activity"
@@ -1669,15 +1683,49 @@ function Activity({
           <thead>
             <tr>
               <th scope="col">
-                {rows ? (isVi ? "Hoạt động" : "กิจกรรม") : "Activity"}
+                {rows
+                  ? pickLang(l, {
+                      th: "กิจกรรม",
+                      vi: "Hoạt động",
+                      en: "Activity",
+                      zh: "活动",
+                      lo: "ກິດຈະກຳ",
+                    })
+                  : "Activity"}
               </th>
               <th scope="col">
-                {rows ? (isVi ? "Nguồn / Phòng" : "แหล่งที่มา") : "Source"}
+                {rows
+                  ? pickLang(l, {
+                      th: "แหล่งที่มา",
+                      vi: "Nguồn / Phòng",
+                      en: "Source / Room",
+                      zh: "来源 / 房间",
+                      lo: "ແຫຼ່ງທີ່ມາ / ຫ້ອງ",
+                    })
+                  : "Source"}
               </th>
               <th scope="col">
-                {rows ? (isVi ? "Trạng thái" : "สถานะ") : "Status"}
+                {rows
+                  ? pickLang(l, {
+                      th: "สถานะ",
+                      vi: "Trạng thái",
+                      en: "Status",
+                      zh: "状态",
+                      lo: "ສະຖານະ",
+                    })
+                  : "Status"}
               </th>
-              <th scope="col">{rows ? (isVi ? "Thời gian" : "เวลา") : "Time"}</th>
+              <th scope="col">
+                {rows
+                  ? pickLang(l, {
+                      th: "เวลา",
+                      vi: "Thời gian",
+                      en: "Time",
+                      zh: "时间",
+                      lo: "ເວລາ",
+                    })
+                  : "Time"}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -1697,9 +1745,13 @@ function Activity({
       {show.length === 0 && (
         <p className="gd-empty" role="status">
           {rows
-            ? isVi
-              ? "Không có hoạt động phù hợp."
-              : "ไม่พบรายการที่ตรงกัน"
+            ? pickLang(l, {
+                th: "ไม่พบรายการที่ตรงกัน",
+                vi: "Không có hoạt động phù hợp.",
+                en: "No matching activity.",
+                zh: "未找到匹配的动态。",
+                lo: "ບໍ່ພົບລາຍການທີ່ຕົງກັນ",
+              })
             : "No matching activity."}
         </p>
       )}
@@ -1717,7 +1769,7 @@ function CommandView({
   dormData?: DormGlassyData;
 }) {
   if (dormData) {
-    const vi = dormData.lang === "vi";
+    const l = dormData.lang;
     const pct =
       dormData.totalBilled > 0
         ? Math.round((dormData.totalCollected / dormData.totalBilled) * 100)
@@ -1734,7 +1786,13 @@ function CommandView({
     return (
       <div className="gd-command-grid">
         <Panel
-          title={vi ? "Tổng thu ký túc xá" : "ยอดเก็บเงินสะสม"}
+          title={pickLang(l, {
+            th: "ยอดเก็บเงินสะสม",
+            vi: "Tổng thu ký túc xá",
+            en: "Total Collected",
+            zh: "累计收款总额",
+            lo: "ຍອດເກັບເງິນສະສົມ",
+          })}
           className="gd-balance"
           action={<span className="gd-unit">VND</span>}
         >
@@ -1747,9 +1805,13 @@ function CommandView({
               {pct}%
             </span>
             <span>
-              {vi
-                ? `Tổng hóa đơn ${thb(dormData.totalBilled)}`
-                : `ยอดเรียกเก็บรวม ${thb(dormData.totalBilled)}`}
+              {pickLang(l, {
+                th: `ยอดเรียกเก็บรวม ${thb(dormData.totalBilled)}`,
+                vi: `Tổng hóa đơn ${thb(dormData.totalBilled)}`,
+                en: `Total billed ${thb(dormData.totalBilled)}`,
+                zh: `总应收 ${thb(dormData.totalBilled)}`,
+                lo: `ຍອດຮຽກເກັບລວມ ${thb(dormData.totalBilled)}`,
+              })}
             </span>
           </div>
           <div className="gd-balance-actions">
@@ -1758,7 +1820,13 @@ function CommandView({
               className="gd-primary"
               onClick={() => open("trends")}
             >
-              {vi ? "Xem xu hướng" : "ดูแนวโน้มรายรับ"}{" "}
+              {pickLang(l, {
+                th: "ดูแนวโน้มรายรับ",
+                vi: "Xem xu hướng",
+                en: "View Trends",
+                zh: "查看趋势",
+                lo: "ເບິ່ງແນວໂນ້ມລາຍຮັບ",
+              })}{" "}
               <ArrowUpRight aria-hidden="true" />
             </button>
             <button
@@ -1766,76 +1834,146 @@ function CommandView({
               className="gd-secondary"
               onClick={() => open("metrics")}
             >
-              {vi ? "Tòa & Phòng" : "อาคารและห้องพัก"}{" "}
+              {pickLang(l, {
+                th: "อาคารและห้องพัก",
+                vi: "Tòa & Phòng",
+                en: "Buildings & Rooms",
+                zh: "楼栋与房间",
+                lo: "ອາຄານ ແລະ ຫ້ອງພັກ",
+              })}{" "}
               <ArrowRight aria-hidden="true" />
             </button>
           </div>
           <div className="gd-streams" aria-label="Fee breakdown">
             <div>
-              <span>{vi ? "Tiền phòng" : "ค่าห้องพัก"}</span>
+              <span>
+                {pickLang(l, {
+                  th: "ค่าห้องพัก",
+                  vi: "Tiền phòng",
+                  en: "Room Fee",
+                  zh: "房费",
+                  lo: "ຄ່າຫ້ອງພັກ",
+                })}
+              </span>
               <strong>{thb(dormData.roomFeeSum)}</strong>
             </div>
             <div>
-              <span>{vi ? "Điện nước" : "ค่าน้ำ-ค่าไฟ"}</span>
+              <span>
+                {pickLang(l, {
+                  th: "ค่าน้ำ-ค่าไฟ",
+                  vi: "Điện nước",
+                  en: "Utilities",
+                  zh: "水电费",
+                  lo: "ຄ່ານ້ຳ-ຄ່າໄຟ",
+                })}
+              </span>
               <strong>{thb(dormData.utilFeeSum)}</strong>
             </div>
             <div>
-              <span>{vi ? "Khác" : "ค่าใช้จ่ายอื่น"}</span>
+              <span>
+                {pickLang(l, {
+                  th: "ค่าใช้จ่ายอื่น",
+                  vi: "Khác",
+                  en: "Other",
+                  zh: "其他",
+                  lo: "ຄ່າໃຊ້ຈ່າຍອື່ນ",
+                })}
+              </span>
               <strong>{thb(dormData.otherFeeSum)}</strong>
             </div>
           </div>
         </Panel>
         <div className="gd-summary">
           <Metric
-            title={vi ? "Đang cư trú" : "ผู้พักอาศัย"}
+            title={pickLang(l, {
+              th: "ผู้พักอาศัย",
+              vi: "Đang cư trú",
+              en: "Active Residents",
+              zh: "当前在住",
+              lo: "ຜູ້ພັກອາໄສ",
+            })}
             icon={<Users />}
             value={dormData.activeResidents}
-            detail={
-              vi
-                ? `Tổng ${dormData.totalMembers} thành viên`
-                : `จากทั้งหมด ${dormData.totalMembers} คน`
-            }
+            detail={pickLang(l, {
+              th: `จากทั้งหมด ${dormData.totalMembers} คน`,
+              vi: `Tổng ${dormData.totalMembers} thành viên`,
+              en: `of ${dormData.totalMembers} total members`,
+              zh: `共 ${dormData.totalMembers} 名住宿生`,
+              lo: `ຈາກທັງໝົດ ${dormData.totalMembers} ຄົນ`,
+            })}
             tone="teal"
           />
           <Metric
-            title={vi ? "Phòng trống" : "ห้องว่างพร้อมพัก"}
+            title={pickLang(l, {
+              th: "ห้องว่างพร้อมพัก",
+              vi: "Phòng trống",
+              en: "Available Rooms",
+              zh: "空余房间",
+              lo: "ຫ້ອງວ່າງພ້ອມພັກ",
+            })}
             icon={<DoorOpen />}
             value={dormData.availableRooms}
-            detail={
-              vi
-                ? `Trên tổng ${dormData.totalRooms} phòng`
-                : `จากทั้งหมด ${dormData.totalRooms} ห้อง`
-            }
+            detail={pickLang(l, {
+              th: `จากทั้งหมด ${dormData.totalRooms} ห้อง`,
+              vi: `Trên tổng ${dormData.totalRooms} phòng`,
+              en: `of ${dormData.totalRooms} total rooms`,
+              zh: `共 ${dormData.totalRooms} 间房间`,
+              lo: `ຈາກທັງໝົດ ${dormData.totalRooms} ຫ້ອງ`,
+            })}
           />
           <Metric
-            title={vi ? "Hóa đơn chưa thu" : "บิลค้างชำระ"}
+            title={pickLang(l, {
+              th: "บิลค้างชำระ",
+              vi: "Hóa đơn chưa thu",
+              en: "Unpaid Bills",
+              zh: "待缴账单",
+              lo: "ບິນຄ້າງຊຳລະ",
+            })}
             icon={<CircleDollarSign />}
             value={dormData.unpaidCount}
-            detail={
-              vi
-                ? `Còn nợ ${thb(dormData.totalOutstanding)}`
-                : `ค้าง ${thb(dormData.totalOutstanding)}`
-            }
+            detail={pickLang(l, {
+              th: `ค้าง ${thb(dormData.totalOutstanding)}`,
+              vi: `Còn nợ ${thb(dormData.totalOutstanding)}`,
+              en: `Due ${thb(dormData.totalOutstanding)}`,
+              zh: `欠费 ${thb(dormData.totalOutstanding)}`,
+              lo: `ຄ້າງ ${thb(dormData.totalOutstanding)}`,
+            })}
             tone="coral"
           />
           <Metric
-            title={vi ? "Cần theo dõi" : "ยังไม่กลับ / ผิดกฎ"}
+            title={pickLang(l, {
+              th: "ยังไม่กลับ / ผิดกฎ",
+              vi: "Cần theo dõi",
+              en: "Needs Follow-up",
+              zh: "需关注事项",
+              lo: "ຍັງບໍ່ກັບ / ຜິດກົດ",
+            })}
             icon={<ListChecks />}
             value={dormData.notReturnedCount + dormData.pendingViolationsCount}
-            detail={
-              vi
-                ? `${dormData.notReturnedCount} chưa về · ${dormData.pendingViolationsCount} vi phạm`
-                : `ยังไม่กลับ ${dormData.notReturnedCount} · ผิดกฎ ${dormData.pendingViolationsCount}`
-            }
+            detail={pickLang(l, {
+              th: `ยังไม่กลับ ${dormData.notReturnedCount} · ผิดกฎ ${dormData.pendingViolationsCount}`,
+              vi: `${dormData.notReturnedCount} chưa về · ${dormData.pendingViolationsCount} vi phạm`,
+              en: `${dormData.notReturnedCount} unreturned · ${dormData.pendingViolationsCount} violations`,
+              zh: `${dormData.notReturnedCount} 未归 · ${dormData.pendingViolationsCount} 违规`,
+              lo: `ຍັງບໍ່ກັບ ${dormData.notReturnedCount} · ຜິດກົດ ${dormData.pendingViolationsCount}`,
+            })}
           />
         </div>
         <Panel
-          title={vi ? "Điểm danh 7 ngày gần nhất" : "สถิติเข้า-ออกหอ (7 วันล่าสุด)"}
-          subtitle={
-            vi
-              ? "Đúng giờ và muộn/vắng theo ngày"
-              : "เปรียบเทียบการเข้าหอตรงเวลาและมาสาย/ไม่กลับ"
-          }
+          title={pickLang(l, {
+            th: "สถิติเข้า-ออกหอ (7 วันล่าสุด)",
+            vi: "Điểm danh 7 ngày gần nhất",
+            en: "Attendance (Last 7 Days)",
+            zh: "近 7 天归寝考勤",
+            lo: "ສະຖິຕິເຂົ້າ-ອອກຫໍ (7 ວັນຫຼ້າສຸດ)",
+          })}
+          subtitle={pickLang(l, {
+            th: "เปรียบเทียบการเข้าหอตรงเวลาและมาสาย/ไม่กลับ",
+            vi: "Đúng giờ và muộn/vắng theo ngày",
+            en: "Daily on-time check-ins vs. late/absent",
+            zh: "每日按时归寝与晚归/未归对比",
+            lo: "ປຽບທຽບການເຂົ້າຫໍຕົງເວລາ ແລະ ມາຊ້າ/ບໍ່ກັບ",
+          })}
           className="gd-command-chart"
         >
           <StackChart
@@ -1844,7 +1982,22 @@ function CommandView({
               lower: item.onTime,
               upper: item.lateOrAbsent,
             }))}
-            labels={[vi ? "Đúng giờ" : "ตรงเวลา", vi ? "Muộn/Vắng" : "สาย/ขาด"]}
+            labels={[
+              pickLang(l, {
+                th: "ตรงเวลา",
+                vi: "Đúng giờ",
+                en: "On Time",
+                zh: "准时",
+                lo: "ຕົງເວລາ",
+              }),
+              pickLang(l, {
+                th: "สาย/ขาด",
+                vi: "Muộn/Vắng",
+                en: "Late/Absent",
+                zh: "晚归/缺勤",
+                lo: "ຊ້າ/ຂາດ",
+              }),
+            ]}
             tones={["teal", "coral"]}
             format={number.format}
             title="Dormitory attendance last 7 days"
@@ -1852,7 +2005,13 @@ function CommandView({
         </Panel>
         <div className="gd-command-side">
           <Panel
-            title={vi ? "Công suất giường ở" : "ความจุเตียงหอพัก"}
+            title={pickLang(l, {
+              th: "ความจุเตียงหอพัก",
+              vi: "Công suất giường ở",
+              en: "Bed Capacity",
+              zh: "床位占用率",
+              lo: "ຄວາມຈຸຕຽງຫໍພັກ",
+            })}
             className="gd-capacity"
           >
             <div
@@ -1868,20 +2027,41 @@ function CommandView({
             <div className="gd-capacity-label">
               <span>
                 <strong>{dormData.occupiedBeds}</strong>{" "}
-                {vi ? "đang ở" : "เตียงที่มีผู้พัก"}
+                {pickLang(l, {
+                  th: "เตียงที่มีผู้พัก",
+                  vi: "đang ở",
+                  en: "occupied",
+                  zh: "已住",
+                  lo: "ຕຽງທີ່ມີຜູ້ພັກ",
+                })}
               </span>
               <span>
-                {dormData.totalBeds} {vi ? "tổng giường" : "เตียงทั้งหมด"}
+                {dormData.totalBeds}{" "}
+                {pickLang(l, {
+                  th: "เตียงทั้งหมด",
+                  vi: "tổng giường",
+                  en: "total beds",
+                  zh: "总床位",
+                  lo: "ຕຽງທັງໝົດ",
+                })}
               </span>
             </div>
           </Panel>
           <Panel
-            title={vi ? "Hàng đợi xử lý" : "รายการรอดำเนินการ"}
-            subtitle={
-              vi
-                ? "Thu tiền, điểm danh và vi phạm"
-                : "จัดการบิลค้าง เช็กอิน และเคสผิดกฎ"
-            }
+            title={pickLang(l, {
+              th: "รายการรอดำเนินการ",
+              vi: "Hàng đợi xử lý",
+              en: "Action Queue",
+              zh: "待办事项队列",
+              lo: "ລາຍການລໍຖ້າດຳເນີນການ",
+            })}
+            subtitle={pickLang(l, {
+              th: "จัดการบิลค้าง เช็กอิน และเคสผิดกฎ",
+              vi: "Thu tiền, điểm danh và vi phạm",
+              en: "Billing, check-ins, and violations",
+              zh: "收费、考勤与违规处理",
+              lo: "ຈັດການບິນຄ້າງ ເຊັກອິນ ແລະ ເຄສຜິດກົດ",
+            })}
             className="gd-approvals"
           >
             <div className="gd-approval-content">
@@ -1890,12 +2070,23 @@ function CommandView({
               </span>
               <div>
                 <strong>
-                  {pendingTotal} {vi ? "mục cần xử lý" : "รายการรอตรวจ"}
+                  {pendingTotal}{" "}
+                  {pickLang(l, {
+                    th: "รายการรอตรวจ",
+                    vi: "mục cần xử lý",
+                    en: "items pending",
+                    zh: "项待处理",
+                    lo: "ລາຍການລໍກວດ",
+                  })}
                 </strong>
                 <small>
-                  {vi
-                    ? "Nhấn để mở bảng điều hành trực tiếp"
-                    : "กดเพื่อเปิดกระดานสั่งการด่วน"}
+                  {pickLang(l, {
+                    th: "กดเพื่อเปิดกระดานสั่งการด่วน",
+                    vi: "Nhấn để mở bảng điều hành trực tiếp",
+                    en: "Click to open operations board",
+                    zh: "点击打开快速调度看板",
+                    lo: "ກົດເພື່ອເປີດກະດານສັ່ງການດ່ວນ",
+                  })}
                 </small>
               </div>
               <button
@@ -2074,7 +2265,7 @@ function AnalyticsMetrics({
   dormData?: DormGlassyData;
 }) {
   if (dormData) {
-    const vi = dormData.lang === "vi";
+    const l = dormData.lang;
     const collectionPct =
       dormData.totalBilled > 0
         ? (dormData.totalCollected / dormData.totalBilled) * 100
@@ -2088,75 +2279,159 @@ function AnalyticsMetrics({
         {trend ? (
           <>
             <Metric
-              title={vi ? "Đã thu" : "ยอดเก็บเงินได้"}
+              title={pickLang(l, {
+                th: "ยอดเก็บเงินได้",
+                vi: "Đã thu",
+                en: "Collected",
+                zh: "已收款",
+                lo: "ຍອດເກັບເງິນໄດ້",
+              })}
               icon={<CircleDollarSign />}
               value={dormData.totalCollected}
               format="thbCompact"
-              detail={vi ? "Thực thu ký túc xá" : "รวมยอดชำระแล้ว"}
+              detail={pickLang(l, {
+                th: "รวมยอดชำระแล้ว",
+                vi: "Thực thu ký túc xá",
+                en: "Dormitory total collected",
+                zh: "宿舍实际已收",
+                lo: "ລວມຍອດຊຳລະແລ້ວ",
+              })}
               tone="teal"
             />
             <Metric
-              title={vi ? "Tổng hóa đơn" : "ยอดเรียกเก็บรวม"}
+              title={pickLang(l, {
+                th: "ยอดเรียกเก็บรวม",
+                vi: "Tổng hóa đơn",
+                en: "Total Billed",
+                zh: "总应收账单",
+                lo: "ຍອດຮຽກເກັບລວມ",
+              })}
               icon={<Box />}
               value={dormData.totalBilled}
               format="thbCompact"
-              detail={vi ? "Tổng phí đã phát hành" : "รวมทุกบิลในระบบ"}
+              detail={pickLang(l, {
+                th: "รวมทุกบิลในระบบ",
+                vi: "Tổng phí đã phát hành",
+                en: "All issued bills",
+                zh: "全部已开立账单",
+                lo: "ລວມທຸກບິນໃນລະບົບ",
+              })}
             />
             <Metric
-              title={vi ? "Còn chưa thu" : "ยอดค้างชำระ"}
+              title={pickLang(l, {
+                th: "ยอดค้างชำระ",
+                vi: "Còn chưa thu",
+                en: "Outstanding",
+                zh: "待缴余额",
+                lo: "ຍອດຄ້າງຊຳລະ",
+              })}
               icon={<ArrowDownRight />}
               value={dormData.totalOutstanding}
               format="thbCompact"
-              detail={`${dormData.unpaidCount} ${vi ? "hóa đơn" : "บิล"}`}
+              detail={`${dormData.unpaidCount} ${pickLang(l, {
+                th: "บิล",
+                vi: "hóa đơn",
+                en: "bills",
+                zh: "笔账单",
+                lo: "ບິນ",
+              })}`}
               tone="coral"
             />
             <Metric
-              title={vi ? "Tỷ lệ thu" : "อัตราการชำระ"}
+              title={pickLang(l, {
+                th: "อัตราการชำระ",
+                vi: "Tỷ lệ thu",
+                en: "Collection Rate",
+                zh: "收缴率",
+                lo: "ອັດຕາການຊຳລະ",
+              })}
               icon={<CircleDollarSign />}
               value={collectionPct}
               format="percent"
-              detail={vi ? "Trên tổng hóa đơn" : "ของยอดเรียกเก็บ"}
+              detail={pickLang(l, {
+                th: "ของยอดเรียกเก็บ",
+                vi: "Trên tổng hóa đơn",
+                en: "of total billed",
+                zh: "占总应收比例",
+                lo: "ຂອງຍອດຮຽກເກັບ",
+              })}
             />
           </>
         ) : (
           <>
             <Metric
-              title={vi ? "Đang cư trú" : "ผู้พักอาศัย"}
+              title={pickLang(l, {
+                th: "ผู้พักอาศัย",
+                vi: "Đang cư trú",
+                en: "Residents",
+                zh: "在住人数",
+                lo: "ຜູ້ພັກອາໄສ",
+              })}
               icon={<Users />}
               value={dormData.activeResidents}
-              detail={
-                vi
-                  ? `${dormData.totalMembers} tổng thành viên`
-                  : `ทั้งหมด ${dormData.totalMembers} คน`
-              }
+              detail={pickLang(l, {
+                th: `ทั้งหมด ${dormData.totalMembers} คน`,
+                vi: `${dormData.totalMembers} tổng thành viên`,
+                en: `${dormData.totalMembers} total members`,
+                zh: `总计 ${dormData.totalMembers} 名`,
+                lo: `ທັງໝົດ ${dormData.totalMembers} ຄົນ`,
+              })}
               tone="teal"
             />
             <Metric
-              title={vi ? "Phòng trống" : "ห้องว่าง"}
+              title={pickLang(l, {
+                th: "ห้องว่าง",
+                vi: "Phòng trống",
+                en: "Available Rooms",
+                zh: "空余房间",
+                lo: "ຫ້ອງວ່າງ",
+              })}
               icon={<DoorOpen />}
               value={dormData.availableRooms}
-              detail={
-                vi
-                  ? `Trên ${dormData.totalRooms} phòng`
-                  : `จาก ${dormData.totalRooms} ห้อง`
-              }
+              detail={pickLang(l, {
+                th: `จาก ${dormData.totalRooms} ห้อง`,
+                vi: `Trên ${dormData.totalRooms} phòng`,
+                en: `of ${dormData.totalRooms} rooms`,
+                zh: `共 ${dormData.totalRooms} 间`,
+                lo: `ຈາກ ${dormData.totalRooms} ຫ້ອງ`,
+              })}
             />
             <Metric
-              title={vi ? "Giường đang ở" : "เตียงที่มีผู้พัก"}
+              title={pickLang(l, {
+                th: "เตียงที่มีผู้พัก",
+                vi: "Giường đang ở",
+                en: "Occupied Beds",
+                zh: "已用床位",
+                lo: "ຕຽງທີ່ມີຜູ້ພັກ",
+              })}
               icon={<Box />}
               value={dormData.occupiedBeds}
-              detail={
-                vi
-                  ? `/ ${dormData.totalBeds} tổng giường`
-                  : `จาก ${dormData.totalBeds} เตียง`
-              }
+              detail={pickLang(l, {
+                th: `จาก ${dormData.totalBeds} เตียง`,
+                vi: `/ ${dormData.totalBeds} tổng giường`,
+                en: `/ ${dormData.totalBeds} total beds`,
+                zh: `/ 共 ${dormData.totalBeds} 床位`,
+                lo: `ຈາກ ${dormData.totalBeds} ຕຽງ`,
+              })}
             />
             <Metric
-              title={vi ? "Tỷ lệ lấp đầy" : "อัตราการเข้าพัก"}
+              title={pickLang(l, {
+                th: "อัตราการเข้าพัก",
+                vi: "Tỷ lệ lấp đầy",
+                en: "Occupancy Rate",
+                zh: "入住率",
+                lo: "ອັດຕາການເຂົ້າພັກ",
+              })}
               icon={<Eye />}
               value={occPct}
               format="percent"
-              detail={vi ? "Công suất toàn khu" : "ความหนาแน่นรวม"}
+              detail={pickLang(l, {
+                th: "ความหนาแน่นรวม",
+                vi: "Công suất toàn khu",
+                en: "Overall capacity",
+                zh: "全区总体容量",
+                lo: "ຄວາມໜາແໜ້ນລວມ",
+              })}
             />
           </>
         )}
@@ -2244,7 +2519,7 @@ function AnalyticsView({
   const trend = type === "trends";
 
   if (dormData) {
-    const vi = dormData.lang === "vi";
+    const l = dormData.lang;
     const totalOcc = Math.max(1, dormData.occupiedBeds);
     const buildingItems = dormData.buildingBreakdown.map((b) => ({
       label: b.label,
@@ -2264,28 +2539,62 @@ function AnalyticsView({
           <Panel
             title={
               trend
-                ? vi
-                  ? "Thu thực tế vs Tổng hóa đơn"
-                  : "ยอดเก็บได้จริง vs ยอดเรียกเก็บรายเดือน"
-                : vi
-                  ? "Sức chứa theo từng tòa nhà"
-                  : "การเข้าพักแยกตามอาคาร"
+                ? pickLang(l, {
+                    th: "ยอดเก็บได้จริง vs ยอดเรียกเก็บรายเดือน",
+                    vi: "Thu thực tế vs Tổng hóa đơn",
+                    en: "Collected vs. Monthly Billed",
+                    zh: "月度实收与应收对比",
+                    lo: "ຍອດເກັບໄດ້ຈິງ vs ຍອດຮຽກເກັບປະຈຳເດືອນ",
+                  })
+                : pickLang(l, {
+                    th: "การเข้าพักแยกตามอาคาร",
+                    vi: "Sức chứa theo từng tòa nhà",
+                    en: "Occupancy by Building",
+                    zh: "各楼栋入住容量",
+                    lo: "ການເຂົ້າພັກແຍກຕາມອາຄານ",
+                  })
             }
             subtitle={
               trend
-                ? vi
-                  ? "So sánh 6 tháng gần nhất (Đơn vị: nghìn VND)"
-                  : "เปรียบเทียบรายรับ 6 เดือนล่าสุด (หน่วยพันดอง)"
-                : vi
-                  ? "Số giường đang ở và giường trống theo từng tòa"
-                  : "จำนวนผู้พักเทียบกับเตียงว่างแต่ละอาคาร"
+                ? pickLang(l, {
+                    th: "เปรียบเทียบรายรับ 6 เดือนล่าสุด (หน่วยพันดอง)",
+                    vi: "So sánh 6 tháng gần nhất (Đơn vị: nghìn VND)",
+                    en: "Last 6 months comparison (thousands VND)",
+                    zh: "近 6 个月收入对比（单位：千越南盾）",
+                    lo: "ປຽບທຽບລາຍຮັບ 6 ເດືອນຫຼ້າສຸດ (ໜ່ວຍພັນດົງ)",
+                  })
+                : pickLang(l, {
+                    th: "จำนวนผู้พักเทียบกับเตียงว่างแต่ละอาคาร",
+                    vi: "Số giường đang ở và giường trống theo từng tòa",
+                    en: "Occupied vs. free beds per building",
+                    zh: "各楼栋已用与空余床位数",
+                    lo: "ຈຳນວນຜູ້ພັກທຽບກັບຕຽງວ່າງແຕ່ລະອາຄານ",
+                  })
             }
             action={
               trend && (
                 <Legend
                   entries={[
-                    { label: vi ? "Đã thu" : "เก็บได้แล้ว", tone: "coral" },
-                    { label: vi ? "Hóa đơn" : "ยอดเรียกเก็บ", tone: "ink" },
+                    {
+                      label: pickLang(l, {
+                        th: "เก็บได้แล้ว",
+                        vi: "Đã thu",
+                        en: "Collected",
+                        zh: "已收",
+                        lo: "ເກັບໄດ້ແລ້ວ",
+                      }),
+                      tone: "coral",
+                    },
+                    {
+                      label: pickLang(l, {
+                        th: "ยอดเรียกเก็บ",
+                        vi: "Hóa đơn",
+                        en: "Billed",
+                        zh: "应收",
+                        lo: "ຍອດຮຽກເກັບ",
+                      }),
+                      tone: "ink",
+                    },
                   ]}
                 />
               )
@@ -2298,16 +2607,40 @@ function AnalyticsView({
                 costs={monthBilled}
                 currencySymbol="₫"
                 seriesNames={[
-                  vi ? "Đã thu" : "เก็บได้",
-                  vi ? "Hóa đơn" : "เรียกเก็บ",
+                  pickLang(l, {
+                    th: "เก็บได้",
+                    vi: "Đã thu",
+                    en: "Collected",
+                    zh: "已收",
+                    lo: "ເກັບໄດ້",
+                  }),
+                  pickLang(l, {
+                    th: "เรียกเก็บ",
+                    vi: "Hóa đơn",
+                    en: "Billed",
+                    zh: "应收",
+                    lo: "ຮຽກເກັບ",
+                  }),
                 ]}
               />
             ) : (
               <StackChart
                 title="Building occupancy breakdown"
                 labels={[
-                  vi ? "Đang ở" : "มีผู้พัก",
-                  vi ? "Còn trống" : "เตียงว่าง",
+                  pickLang(l, {
+                    th: "มีผู้พัก",
+                    vi: "Đang ở",
+                    en: "Occupied",
+                    zh: "已住",
+                    lo: "ມີຜູ້ພັກ",
+                  }),
+                  pickLang(l, {
+                    th: "เตียงว่าง",
+                    vi: "Còn trống",
+                    en: "Available",
+                    zh: "空余",
+                    lo: "ຕຽງວ່າງ",
+                  }),
                 ]}
                 tones={["teal", "ink"]}
                 format={number.format}
@@ -2320,20 +2653,38 @@ function AnalyticsView({
             )}
           </Panel>
           <Panel
-            title={vi ? "Phân bổ theo tòa" : "สัดส่วนผู้พักตามอาคาร"}
+            title={pickLang(l, {
+              th: "สัดส่วนผู้พักตามอาคาร",
+              vi: "Phân bổ theo tòa",
+              en: "Distribution by Building",
+              zh: "楼栋人员分布占比",
+              lo: "ສັດສ່ວນຜູ້ພັກຕາມອາຄານ",
+            })}
             className="gd-device-panel"
           >
             <DeviceChart
               mix={buildingItems.map((b) => b.share)}
               visitors={dormData.occupiedBeds}
               items={buildingItems}
-              centerLabel={vi ? "Đang ở" : "ผู้พัก"}
+              centerLabel={pickLang(l, {
+                th: "ผู้พัก",
+                vi: "Đang ở",
+                en: "Occupied",
+                zh: "在住",
+                lo: "ຜູ້ພັກ",
+              })}
             />
           </Panel>
         </div>
         {trend ? (
           <Panel
-            title={vi ? "Xuất báo cáo tài chính" : "ส่งออกรายงานรายรับ"}
+            title={pickLang(l, {
+              th: "ส่งออกรายงานรายรับ",
+              vi: "Xuất báo cáo tài chính",
+              en: "Export Revenue Report",
+              zh: "导出财务收支报表",
+              lo: "ສົ່ງອອກລາຍງານລາຍຮັບ",
+            })}
             className="gd-statement"
           >
             <div className="gd-approval-content">
@@ -2342,9 +2693,13 @@ function AnalyticsView({
               </span>
               <div>
                 <strong>
-                  {vi
-                    ? "Báo cáo thu chi 6 tháng"
-                    : "สรุปรายรับค่าห้อง 6 เดือน"}
+                  {pickLang(l, {
+                    th: "สรุปรายรับค่าห้อง 6 เดือน",
+                    vi: "Báo cáo thu chi 6 tháng",
+                    en: "6-Month Financial Summary",
+                    zh: "近 6 个月收支汇总",
+                    lo: "ສະຫຼຸບລາຍຮັບຄ່າຫ້ອງ 6 ເດືອນ",
+                  })}
                 </strong>
                 <small>
                   {monthLabels[0] ?? "-"} — {monthLabels.at(-1) ?? "-"} · VND
@@ -2456,18 +2811,41 @@ const statusStyle: Record<
   Announcements: { icon: <Bell />, tone: "teal" },
 };
 
-function getLaneTitle(lane: AnyWorkStatus, lang?: "th" | "vi"): string {
+function getLaneTitle(lane: AnyWorkStatus, lang?: Language): string {
   if (!lang) return lane;
-  const vi = lang === "vi";
   switch (lane) {
     case "Unpaid":
-      return vi ? "Chưa thanh toán" : "ค้างชำระ";
+      return pickLang(lang, {
+        th: "ค้างชำระ",
+        vi: "Chưa thanh toán",
+        en: "Unpaid",
+        zh: "未缴费",
+        lo: "ຄ້າງຊຳລະ",
+      });
     case "Not Returned":
-      return vi ? "Chưa về KTX" : "ยังไม่กลับหอ";
+      return pickLang(lang, {
+        th: "ยังไม่กลับหอ",
+        vi: "Chưa về KTX",
+        en: "Not Returned",
+        zh: "未归寝",
+        lo: "ຍັງບໍ່ກັບຫໍ",
+      });
     case "Violations":
-      return vi ? "Vi phạm chờ xử lý" : "การทำผิดกฎ";
+      return pickLang(lang, {
+        th: "การทำผิดกฎ",
+        vi: "Vi phạm chờ xử lý",
+        en: "Violations",
+        zh: "待处理违规",
+        lo: "ການລະເມີດກົດ",
+      });
     case "Announcements":
-      return vi ? "Thông báo" : "ประกาศข่าว";
+      return pickLang(lang, {
+        th: "ประกาศข่าว",
+        vi: "Thông báo",
+        en: "Announcements",
+        zh: "公告通知",
+        lo: "ປະກາດຂ່າວ",
+      });
     default:
       return lane;
   }
@@ -2498,7 +2876,7 @@ function OperationsView({
     : work.filter((item) => item.status === "Needs review").length;
   const tools = new Set(work.map((item) => item.tool)).size;
   const lanes = filter === "All lanes" ? laneKeys : [filter];
-  const vi = dormData?.lang === "vi";
+  const l: Language = dormData?.lang ?? "th";
 
   return (
     <div className="gd-analytics">
@@ -2506,68 +2884,106 @@ function OperationsView({
         <Metric
           title={
             dormData
-              ? vi
-                ? "Tổng nợ chưa thu"
-                : "ยอดค้างชำระรวม"
+              ? pickLang(l, {
+                  th: "ยอดค้างชำระรวม",
+                  vi: "Tổng nợ chưa thu",
+                  en: "Total Outstanding",
+                  zh: "总欠费",
+                  lo: "ຍອດຄ້າງຊຳລະລວມ",
+                })
               : "Revenue at work"
           }
           icon={<CircleDollarSign />}
           value={dormData ? dormData.totalOutstanding : 126100}
           format={dormData ? "thbCompact" : "compact"}
-          detail={dormData ? (vi ? "Cần thu thêm" : "รอการชำระ") : "last 90 days"}
+          detail={
+            dormData
+              ? pickLang(l, {
+                  th: "รอการชำระ",
+                  vi: "Cần thu thêm",
+                  en: "Awaiting payment",
+                  zh: "待收取",
+                  lo: "ລໍຖ້າການຊຳລະ",
+                })
+              : "last 90 days"
+          }
           tone="teal"
         />
         <Metric
           title={
             dormData
-              ? vi
-                ? "Tổng mục theo dõi"
-                : "รายการทั้งหมดในบอร์ด"
+              ? pickLang(l, {
+                  th: "รายการทั้งหมดในบอร์ด",
+                  vi: "Tổng mục theo dõi",
+                  en: "Total Board Items",
+                  zh: "看板跟踪总数",
+                  lo: "ລາຍການທັງໝົດໃນບອດ",
+                })
               : "Active work items"
           }
           icon={<Zap />}
           value={work.length}
           detail={
             dormData
-              ? vi
-                ? "Trên 4 nhóm công việc"
-                : "แบ่งตาม 4 หมวดงาน"
+              ? pickLang(l, {
+                  th: "แบ่งตาม 4 หมวดงาน",
+                  vi: "Trên 4 nhóm công việc",
+                  en: "Across 4 categories",
+                  zh: "共 4 个工作分组",
+                  lo: "ແບ່ງຕາມ 4 ໝວດງານ",
+                })
               : "in the operations queue"
           }
         />
         <Metric
           title={
             dormData
-              ? vi
-                ? "Hóa đơn & Vi phạm"
-                : "บิลค้าง & ผิดกฎ"
+              ? pickLang(l, {
+                  th: "บิลค้าง & ผิดกฎ",
+                  vi: "Hóa đơn & Vi phạm",
+                  en: "Bills & Violations",
+                  zh: "欠费与违规",
+                  lo: "ບິນຄ້າງ & ຜິດກົດ",
+                })
               : "Needs approval"
           }
           icon={<ListChecks />}
           value={review}
           detail={
             dormData
-              ? vi
-                ? "Cần xác nhận xử lý"
-                : "รอเจ้าหน้าที่จัดการ"
+              ? pickLang(l, {
+                  th: "รอเจ้าหน้าที่จัดการ",
+                  vi: "Cần xác nhận xử lý",
+                  en: "Needs staff action",
+                  zh: "待工作人员确认",
+                  lo: "ລໍຖ້າເຈົ້າໜ້າທີ່ຈັດການ",
+                })
               : "waiting for an owner"
           }
         />
         <Metric
           title={
             dormData
-              ? vi
-                ? "Chưa về KTX"
-                : "ยังไม่กลับหอ"
+              ? pickLang(l, {
+                  th: "ยังไม่กลับหอ",
+                  vi: "Chưa về KTX",
+                  en: "Not Returned",
+                  zh: "未归寝人数",
+                  lo: "ຍັງບໍ່ກັບຫໍ",
+                })
               : "Connected systems"
           }
           icon={<ShieldCheck />}
           value={dormData ? dormData.notReturnedCount : tools}
           detail={
             dormData
-              ? vi
-                ? "Thành viên ngoài KTX"
-                : "สมาชิกยังไม่เช็กอิน"
+              ? pickLang(l, {
+                  th: "สมาชิกยังไม่เช็กอิน",
+                  vi: "Thành viên ngoài KTX",
+                  en: "Residents out of dorm",
+                  zh: "尚未返寝住宿生",
+                  lo: "ສະມາຊິກຍັງບໍ່ເຊັກອິນ",
+                })
               : "represented in the queue"
           }
         />
@@ -2575,16 +2991,24 @@ function OperationsView({
       <Panel
         title={
           dormData
-            ? vi
-              ? "Bảng điều hành ký túc xá"
-              : "กระดานควบคุมงานหอพัก"
+            ? pickLang(l, {
+                th: "กระดานควบคุมงานหอพัก",
+                vi: "Bảng điều hành ký túc xá",
+                en: "Dormitory Operations Board",
+                zh: "宿舍调度管理看板",
+                lo: "ກະດານຄວບຄຸມງານຫໍພັກ",
+              })
             : "Active work board"
         }
         subtitle={
           dormData
-            ? vi
-              ? "Nhấn vào từng thẻ để thanh toán, điểm danh hoặc xử lý vi phạm ngay."
-              : "กดที่แต่ละรายการเพื่อกดรับชำระเงิน เช็กอิน หรือปิดเคสได้ทันที"
+            ? pickLang(l, {
+                th: "กดที่แต่ละรายการเพื่อกดรับชำระเงิน เช็กอิน หรือปิดเคสได้ทันที",
+                vi: "Nhấn vào từng thẻ để thanh toán, điểm danh hoặc xử lý vi phạm ngay.",
+                en: "Click any card to record payment, check in, or resolve violations immediately.",
+                zh: "点击卡片即可快速登记收费、签到或处理违规。",
+                lo: "ກົດທີ່ແຕ່ລະລາຍການເພື່ອຮັບຊຳລະເງິນ ເຊັກອິນ ຫຼື ປິດເຄສໄດ້ທັນທີ",
+              })
             : "Track queued actions, approvals, and connector exceptions."
         }
         className="gd-board"
@@ -2599,7 +3023,15 @@ function OperationsView({
               }
             >
               <option value="All lanes">
-                {dormData ? (vi ? "Tất cả nhóm" : "ทุกหมวดหมู่") : "All lanes"}
+                {dormData
+                  ? pickLang(l, {
+                      th: "ทุกหมวดหมู่",
+                      vi: "Tất cả nhóm",
+                      en: "All categories",
+                      zh: "全部分组",
+                      lo: "ທຸກໝວດໝູ່",
+                    })
+                  : "All lanes"}
               </option>
               {laneKeys.map((status) => (
                 <option key={status} value={status}>
@@ -2644,9 +3076,13 @@ function OperationsView({
                 {items.length === 0 && (
                   <p className="gd-empty">
                     {dormData
-                      ? vi
-                        ? "Không có mục chờ."
-                        : "ไม่มีรายการค้าง"
+                      ? pickLang(l, {
+                          th: "ไม่มีรายการค้าง",
+                          vi: "Không có mục chờ.",
+                          en: "Queue clear.",
+                          zh: "暂无待办。",
+                          lo: "ບໍ່ມີລາຍການຄ້າງ",
+                        })
                       : "Queue clear."}
                   </p>
                 )}
@@ -2723,55 +3159,135 @@ type ViewItem = {
 
 function getViews(dormData?: DormGlassyData): readonly ViewItem[] {
   if (!dormData) return views;
-  const vi = dormData.lang === "vi";
+  const l = dormData.lang;
   return [
     {
       id: "command",
-      label: vi ? "Trung tâm KTX" : "ศูนย์ควบคุมหอพัก",
-      short: vi ? "Tổng quan" : "ภาพรวม",
+      label: pickLang(l, {
+        th: "ศูนย์ควบคุมหอพัก",
+        vi: "Trung tâm KTX",
+        en: "Dormitory Center",
+        zh: "宿舍控制中心",
+        lo: "ສູນຄວບຄຸມຫໍພັກ",
+      }),
+      short: pickLang(l, {
+        th: "ภาพรวม",
+        vi: "Tổng quan",
+        en: "Overview",
+        zh: "总览",
+        lo: "ພາບລວມ",
+      }),
       icon: LayoutDashboard,
-      description: vi
-        ? "Doanh thu, tình trạng phòng và các việc cần xử lý ngay."
-        : "สรุปรายรับ สถานะห้องพัก และงานที่รอการตรวจสอบ",
-      prompt: vi
-        ? "Xem ngay những mục cần xử lý."
-        : "ดูรายการที่ต้องจัดการด่วน",
+      description: pickLang(l, {
+        th: "สรุปรายรับ สถานะห้องพัก และงานที่รอการตรวจสอบ",
+        vi: "Doanh thu, tình trạng phòng và các việc cần xử lý ngay.",
+        en: "Revenue, room status, and pending tasks.",
+        zh: "收入汇总、房间状态与待处理事项。",
+        lo: "ສະຫຼຸບລາຍຮັບ ສະຖານະຫ້ອງພັກ ແລະ ງານທີ່ລໍກວດສອບ",
+      }),
+      prompt: pickLang(l, {
+        th: "ดูรายการที่ต้องจัดการด่วน",
+        vi: "Xem ngay những mục cần xử lý.",
+        en: "View urgent pending items.",
+        zh: "立即查看待办事项。",
+        lo: "ເບິ່ງລາຍການທີ່ຕ້ອງຈັດການດ່ວນ",
+      }),
     },
     {
       id: "trends",
-      label: vi ? "Tài chính & Thu phí" : "การเงินและรายรับ",
-      short: vi ? "Thu phí" : "การเงิน",
+      label: pickLang(l, {
+        th: "การเงินและรายรับ",
+        vi: "Tài chính & Thu phí",
+        en: "Finance & Billing",
+        zh: "财务与收费",
+        lo: "ການເງິນ ແລະ ລາຍຮັບ",
+      }),
+      short: pickLang(l, {
+        th: "การเงิน",
+        vi: "Thu phí",
+        en: "Billing",
+        zh: "收费",
+        lo: "ການເງິນ",
+      }),
       icon: TrendingUp,
-      description: vi
-        ? "Theo dõi tiền đã thu và hóa đơn theo từng tháng."
-        : "เปรียบเทียบยอดเก็บได้จริงกับยอดเรียกเก็บรายเดือน",
-      prompt: vi
-        ? "Doanh thu ký túc xá 6 tháng gần đây thế nào?"
-        : "แนวโน้มรายรับค่าหอ 6 เดือนล่าสุดเป็นอย่างไร?",
+      description: pickLang(l, {
+        th: "เปรียบเทียบยอดเก็บได้จริงกับยอดเรียกเก็บรายเดือน",
+        vi: "Theo dõi tiền đã thu và hóa đơn theo từng tháng.",
+        en: "Compare collected revenue vs. monthly billed totals.",
+        zh: "对比每月实际收款与应收账单金额。",
+        lo: "ປຽບທຽບຍອດເກັບໄດ້ຈິງກັບຍອດຮຽກເກັບປະຈຳເດືອນ",
+      }),
+      prompt: pickLang(l, {
+        th: "แนวโน้มรายรับค่าหอ 6 เดือนล่าสุดเป็นอย่างไร?",
+        vi: "Doanh thu ký túc xá 6 tháng gần đây thế nào?",
+        en: "How is dormitory revenue trending over the last 6 months?",
+        zh: "最近 6 个月的宿舍收费趋势如何？",
+        lo: "ແນວໂນ້ມລາຍຮັບຄ່າຫໍ 6 ເດືອນຫຼ້າສຸດເປັນແນວໃດ?",
+      }),
     },
     {
       id: "metrics",
-      label: vi ? "Tòa nhà & Phòng ở" : "อาคารและห้องพัก",
-      short: vi ? "Tòa & Phòng" : "อาคาร",
+      label: pickLang(l, {
+        th: "อาคารและห้องพัก",
+        vi: "Tòa nhà & Phòng ở",
+        en: "Buildings & Rooms",
+        zh: "楼栋与房间",
+        lo: "ອາຄານ ແລະ ຫ້ອງພັກ",
+      }),
+      short: pickLang(l, {
+        th: "อาคาร",
+        vi: "Tòa & Phòng",
+        en: "Rooms",
+        zh: "房间",
+        lo: "ອາຄານ",
+      }),
       icon: BarChart3,
-      description: vi
-        ? "Công suất giường ở, phòng trống và phân bổ từng tòa."
-        : "ติดตามความจุเตียง ห้องว่าง และสัดส่วนผู้พักรายอาคาร",
-      prompt: vi
-        ? "Kiểm tra tỷ lệ lấp đầy từng tòa."
-        : "ตรวจสอบความจุห้องพักแยกตามอาคาร",
+      description: pickLang(l, {
+        th: "ติดตามความจุเตียง ห้องว่าง และสัดส่วนผู้พักรายอาคาร",
+        vi: "Công suất giường ở, phòng trống và phân bổ từng tòa.",
+        en: "Track bed capacity, vacancies, and building distribution.",
+        zh: "查看床位容量、空房与各楼栋入住占比。",
+        lo: "ຕິດຕາມຄວາມຈຸຕຽງ ຫ້ອງວ່າງ ແລະ ສັດສ່ວນຜູ້ພັກລາຍອາຄານ",
+      }),
+      prompt: pickLang(l, {
+        th: "ตรวจสอบความจุห้องพักแยกตามอาคาร",
+        vi: "Kiểm tra tỷ lệ lấp đầy từng tòa.",
+        en: "Inspect occupancy breakdown by building.",
+        zh: "检查各楼栋入住率分布。",
+        lo: "ກວດສອບຄວາມຈຸຫ້ອງພັກແຍກຕາມອາຄານ",
+      }),
     },
     {
       id: "operations",
-      label: vi ? "Bảng điều hành nhanh" : "จัดการงานด่วน",
-      short: vi ? "Xử lý" : "สั่งการ",
+      label: pickLang(l, {
+        th: "จัดการงานด่วน",
+        vi: "Bảng điều hành nhanh",
+        en: "Operations Board",
+        zh: "快速调度看板",
+        lo: "ຈັດການງານດ່ວນ",
+      }),
+      short: pickLang(l, {
+        th: "สั่งการ",
+        vi: "Xử lý",
+        en: "Actions",
+        zh: "处理",
+        lo: "ສັ່ງການ",
+      }),
       icon: BriefcaseBusiness,
-      description: vi
-        ? "Thu tiền, xác nhận về KTX và xử lý vi phạm chỉ với 1 chạm."
-        : "รับชำระค่าห้อง เช็กอินเข้าหอ และปิดเคสผิดกฎได้ทันที",
-      prompt: vi
-        ? "Những việc nào đang chờ xác nhận?"
-        : "มีรายการไหนบ้างที่รอเจ้าหน้าที่จัดการ?",
+      description: pickLang(l, {
+        th: "รับชำระค่าห้อง เช็กอินเข้าหอ และปิดเคสผิดกฎได้ทันที",
+        vi: "Thu tiền, xác nhận về KTX và xử lý vi phạm chỉ với 1 chạm.",
+        en: "One-click fee collection, check-ins, and violation resolution.",
+        zh: "一键完成收费确认、归寝签到与违规处理。",
+        lo: "ຮັບຊຳລະຄ່າຫ້ອງ ເຊັກອິນເຂົ້າຫໍ ແລະ ປິດເຄສຜິດກົດໄດ້ທັນທີ",
+      }),
+      prompt: pickLang(l, {
+        th: "มีรายการไหนบ้างที่รอเจ้าหน้าที่จัดการ?",
+        vi: "Những việc nào đang chờ xác nhận?",
+        en: "Which items are awaiting staff action?",
+        zh: "有哪些事项正等待工作人员确认？",
+        lo: "ມີລາຍການໃດແດ່ທີ່ລໍຖ້າເຈົ້າໜ້າທີ່ຈັດການ?",
+      }),
     },
   ];
 }
@@ -3199,7 +3715,7 @@ function GlassyDashboard({
     }
   );
 
-  const vi = dormData?.lang === "vi";
+  const dormLang: Language = dormData?.lang ?? "th";
   const current = viewItems.find((item) => item.id === view) ?? viewItems[0];
   const workItem =
     typeof modal === "object" && modal
@@ -3248,12 +3764,30 @@ function GlassyDashboard({
     if (!workItem) return "";
     if (!dormData) return "Mark reviewed";
     if (workItem.kind === "payment") {
-      return vi ? "Xác nhận đã thanh toán" : "ยืนยันรับชำระแล้ว";
+      return pickLang(dormLang, {
+        th: "ยืนยันรับชำระแล้ว",
+        vi: "Xác nhận đã thanh toán",
+        en: "Confirm Paid",
+        zh: "确认已收款",
+        lo: "ຢືນຢັນຮັບຊຳລະແລ້ວ",
+      });
     }
     if (workItem.kind === "attendance") {
-      return vi ? "Điểm danh đã về KTX" : "เช็กชื่อกลับเข้าหอแล้ว";
+      return pickLang(dormLang, {
+        th: "เช็กชื่อกลับเข้าหอแล้ว",
+        vi: "Điểm danh đã về KTX",
+        en: "Mark Checked In",
+        zh: "标记已返寝",
+        lo: "ເຊັກຊື່ກັບເຂົ້າຫໍແລ້ວ",
+      });
     }
-    return vi ? "Đánh dấu đã xử lý" : "ปิดเคสเรียบร้อยแล้ว";
+    return pickLang(dormLang, {
+      th: "ปิดเคสเรียบร้อยแล้ว",
+      vi: "Đánh dấu đã xử lý",
+      en: "Mark Resolved",
+      zh: "标记为已处理",
+      lo: "ປິດເຄສສຳເລັດແລ້ວ",
+    });
   };
 
   return (
@@ -3288,9 +3822,13 @@ function GlassyDashboard({
               <strong>{workspaceName}</strong>
               <small>
                 {dormData
-                  ? vi
-                    ? "Dữ liệu trực tiếp • Supabase"
-                    : "ข้อมูลสดจากระบบหอพัก"
+                  ? pickLang(dormLang, {
+                      th: "ข้อมูลสดจากระบบหอพัก",
+                      vi: "Dữ liệu trực tiếp • Supabase",
+                      en: "Live Data • Supabase",
+                      zh: "实时宿舍数据 • Supabase",
+                      lo: "ຂໍ້ມູນສົດຈາກລະບົບຫໍພັກ",
+                    })
                   : "Workspace"}
               </small>
             </div>
@@ -3313,9 +3851,13 @@ function GlassyDashboard({
                 <ArrowLeft aria-hidden="true" />
                 <span>
                   {dormData
-                    ? vi
-                      ? "Trang chính"
-                      : "กลับระบบหลัก"
+                    ? pickLang(dormLang, {
+                        th: "กลับระบบหลัก",
+                        vi: "Trang chính",
+                        en: "Back to Main",
+                        zh: "返回主页",
+                        lo: "ກັບສູ່ລະບົບຫຼັກ",
+                      })
                     : "Back"}
                 </span>
               </Link>
@@ -3457,9 +3999,13 @@ function GlassyDashboard({
         <footer className="gd-footer">
           <span>
             {dormData
-              ? vi
-                ? "Dữ liệu ký túc xá trực tiếp • Supabase"
-                : "ระบบควบคุมหอพักแบบเรียลไทม์ • Supabase"
+              ? pickLang(dormLang, {
+                  th: "ระบบควบคุมหอพักแบบเรียลไทม์ • Supabase",
+                  vi: "Dữ liệu ký túc xá trực tiếp • Supabase",
+                  en: "Real-time Dormitory Control • Supabase",
+                  zh: "实时宿舍管理系统 • Supabase",
+                  lo: "ລະບົບຄວບຄຸມຫໍພັກແບບສົດ • Supabase",
+                })
               : "Sample workspace"}
           </span>
           {backgroundCredit && (
@@ -3481,7 +4027,17 @@ function GlassyDashboard({
       )}
       {modal === "notifications" && (
         <Dialog
-          title={dormData ? (vi ? "Cảnh báo cần xử lý" : "แจ้งเตือนรอดำเนินการ") : "Notifications"}
+          title={
+            dormData
+              ? pickLang(dormLang, {
+                  th: "แจ้งเตือนรอดำเนินการ",
+                  vi: "Cảnh báo cần xử lý",
+                  en: "Pending Alerts",
+                  zh: "待处理提醒",
+                  lo: "ແຈ້ງເຕືອນລໍດຳເນີນການ",
+                })
+              : "Notifications"
+          }
           close={close}
         >
           <div className="gd-quick-list">
@@ -3505,9 +4061,13 @@ function GlassyDashboard({
             {reviewCount === 0 && (
               <p className="gd-empty">
                 {dormData
-                  ? vi
-                    ? "Không có cảnh báo nào."
-                    : "ไม่มีรายการค้างดำเนินการ"
+                  ? pickLang(dormLang, {
+                      th: "ไม่มีรายการค้างดำเนินการ",
+                      vi: "Không có cảnh báo nào.",
+                      en: "No pending alerts.",
+                      zh: "暂无待处理提醒。",
+                      lo: "ບໍ່ມີລາຍການຄ້າງດຳເນີນການ",
+                    })
                   : "You’re all caught up."}
               </p>
             )}
@@ -3520,15 +4080,45 @@ function GlassyDashboard({
           <p className="gd-work-dialog-description">{workItem.description}</p>
           <dl className="gd-work-facts">
             <div>
-              <dt>{dormData ? (vi ? "Phòng / Phạm vi" : "ห้อง / ขอบเขต") : "System"}</dt>
+              <dt>
+                {dormData
+                  ? pickLang(dormLang, {
+                      th: "ห้อง / ขอบเขต",
+                      vi: "Phòng / Phạm vi",
+                      en: "Room / Scope",
+                      zh: "房间 / 范围",
+                      lo: "ຫ້ອງ / ຂອບເຂດ",
+                    })
+                  : "System"}
+              </dt>
               <dd>{workItem.tool}</dd>
             </div>
             <div>
-              <dt>{dormData ? (vi ? "Mã / Loại" : "รหัส / หมวด") : "Owner"}</dt>
+              <dt>
+                {dormData
+                  ? pickLang(dormLang, {
+                      th: "รหัส / หมวด",
+                      vi: "Mã / Loại",
+                      en: "ID / Category",
+                      zh: "编号 / 类别",
+                      lo: "ລະຫັດ / ໝວດ",
+                    })
+                  : "Owner"}
+              </dt>
               <dd>{workItem.owner}</dd>
             </div>
             <div>
-              <dt>{dormData ? (vi ? "Thời gian" : "เวลา") : "Reference"}</dt>
+              <dt>
+                {dormData
+                  ? pickLang(dormLang, {
+                      th: "เวลา",
+                      vi: "Thời gian",
+                      en: "Time",
+                      zh: "时间",
+                      lo: "ເວລາ",
+                    })
+                  : "Reference"}
+              </dt>
               <dd>{dormData ? workItem.timestamp : workItem.id}</dd>
             </div>
           </dl>
@@ -3563,9 +4153,13 @@ function GlassyDashboard({
               }}
             >
               {resolving
-                ? vi
-                  ? "Đang lưu..."
-                  : "กำลังบันทึก..."
+                ? pickLang(dormLang, {
+                    th: "กำลังบันทึก...",
+                    vi: "Đang lưu...",
+                    en: "Saving...",
+                    zh: "正在保存...",
+                    lo: "ກຳລັງບັນທຶກ...",
+                  })
                 : resolveLabel()}{" "}
               <Command aria-hidden="true" />
             </button>

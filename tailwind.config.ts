@@ -74,6 +74,8 @@ const config = {
       fontFamily: {
         sans: [
           "var(--font-anuphan)",
+          "var(--font-noto-lao)",
+          "var(--font-noto-sc)",
           "system-ui",
           "sans-serif",
         ],

@@ -21,7 +21,7 @@ import {
   setCached,
   subscribeDormSync,
 } from "@/lib/cache";
-import { useI18n } from "@/lib/i18n";
+import { LANGUAGE_MAP, pickLang, useI18n } from "@/lib/i18n";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { formatDateTime, generateReceiptNumber } from "@/lib/utils";
@@ -191,9 +191,12 @@ export default function GlassyDormPage() {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
-      const label = d.toLocaleDateString(lang === "vi" ? "vi-VN" : "th-TH", {
-        weekday: "short",
-      });
+      const label = d.toLocaleDateString(
+        LANGUAGE_MAP[lang]?.intlLocale ?? "th-TH",
+        {
+          weekday: "short",
+        }
+      );
       dayMap.set(key, { label, onTime: 0, lateOrAbsent: 0 });
     }
     raw.attendanceLogs.forEach((log) => {
@@ -251,7 +254,7 @@ export default function GlassyDormPage() {
         entityId: p.id,
         kind: "payment" as const,
         name: p.member?.full_name ?? "-",
-        description: `${p.billing_month} • ${new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "th-TH").format(Math.max(0, Number(p.amount) - Number(p.paid_amount)))} ${lang === "vi" ? "VND" : "₫"}`,
+        description: `${p.billing_month} • ${new Intl.NumberFormat(LANGUAGE_MAP[lang]?.intlLocale ?? "th-TH").format(Math.max(0, Number(p.amount) - Number(p.paid_amount)))} ${lang === "th" ? "₫" : "VND"}`,
         tool: p.member?.room?.room_number ?? "-",
         owner: p.member?.student_code ?? "-",
         status: "Unpaid" as const,
@@ -361,7 +364,13 @@ export default function GlassyDormPage() {
       }
 
       showToast(
-        lang === "vi" ? "Đã cập nhật thành công" : "อัปเดตข้อมูลเรียบร้อยแล้ว",
+        pickLang(lang, {
+          th: "อัปเดตข้อมูลเรียบร้อยแล้ว",
+          vi: "Đã cập nhật thành công",
+          en: "Updated successfully",
+          zh: "更新成功",
+          lo: "ອັບເດດຂໍ້ມູນສຳເລັດແລ້ວ",
+        }),
         "success"
       );
       invalidateCache();
@@ -378,7 +387,13 @@ export default function GlassyDormPage() {
         {"#root .w-screen:has(.gd-app) { width: 100%; min-width: 0; }"}
       </style>
       <GlassyDashboard
-        workspaceName={lang === "vi" ? "KTX CONTROL" : "DORM CONTROL"}
+        workspaceName={pickLang(lang, {
+          th: "DORM CONTROL",
+          vi: "KTX CONTROL",
+          en: "DORM CONTROL",
+          zh: "宿舍控制中心",
+          lo: "KTX CONTROL",
+        })}
         panelFrost={12}
         initialTheme={dark ? "dark" : "light"}
         backHref="/"

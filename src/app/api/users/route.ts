@@ -89,7 +89,11 @@ export async function POST(request: Request) {
         email_confirm: true,
         user_metadata: {
           full_name: String(full_name).trim(),
-          preferred_language: preferred_language === "vi" ? "vi" : "th",
+          preferred_language: ["th", "vi", "en", "zh", "lo"].includes(
+            preferred_language
+          )
+            ? preferred_language
+            : "th",
         },
       });
 
@@ -106,7 +110,11 @@ export async function POST(request: Request) {
         role: targetRole,
         full_name: String(full_name).trim(),
         phone: phone ? String(phone) : "",
-        preferred_language: preferred_language === "vi" ? "vi" : "th",
+        preferred_language: ["th", "vi", "en", "zh", "lo"].includes(
+          preferred_language
+        )
+          ? preferred_language
+          : "th",
       })
       .eq("id", created.user.id);
 

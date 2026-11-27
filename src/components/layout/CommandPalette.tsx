@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getCached, isCacheFresh, setCached } from "@/lib/cache";
-import { useI18n } from "@/lib/i18n";
+import { pickLang, useI18n } from "@/lib/i18n";
 
 interface QuickMember {
   id: string;
@@ -134,13 +134,18 @@ export function CommandPalette({
 
   const items = useMemo<CommandItem[]>(() => {
     const q = query.trim().toLowerCase();
-    const isVi = lang === "vi";
 
     const navItems: CommandItem[] = [
       {
         id: "nav-dash",
         title: t.nav.dashboard,
-        subtitle: isVi ? "Tổng quan KTX" : "ภาพรวมระบบหอพัก",
+        subtitle: pickLang(lang, {
+          th: "ภาพรวมระบบหอพัก",
+          vi: "Tổng quan KTX",
+          en: "Dormitory overview",
+          zh: "宿舍总览",
+          lo: "ພາບລວມລະບົບຫໍພັກ",
+        }),
         href: "/",
         group: "nav",
         icon: <LayoutDashboard className="h-4 w-4 text-primary" />,
@@ -148,7 +153,13 @@ export function CommandPalette({
       {
         id: "nav-members",
         title: t.nav.members,
-        subtitle: isVi ? "Thêm / sửa thành viên" : "เพิ่ม ลบ แก้ไขรายชื่อสมาชิก",
+        subtitle: pickLang(lang, {
+          th: "เพิ่ม ลบ แก้ไขรายชื่อสมาชิก",
+          vi: "Thêm / sửa thành viên",
+          en: "Add, edit & assign residents",
+          zh: "增删改住宿生信息",
+          lo: "ເພີ່ມ ລຶບ ແກ້ໄຂລາຍຊື່ສະມາຊິກ",
+        }),
         href: "/members",
         group: "nav",
         icon: <Users className="h-4 w-4 text-primary" />,
@@ -156,7 +167,13 @@ export function CommandPalette({
       {
         id: "nav-rooms",
         title: t.nav.rooms,
-        subtitle: isVi ? "Sơ đồ 3 tòa × 5 tầng" : "ผังห้องพัก 3 อาคาร × 5 ชั้น",
+        subtitle: pickLang(lang, {
+          th: "ผังห้องพักและอาคาร",
+          vi: "Sơ đồ tòa nhà & phòng",
+          en: "Buildings & room floor plan",
+          zh: "楼栋与房间分布图",
+          lo: "ຜັງຫ້ອງພັກ ແລະ ອາຄານ",
+        }),
         href: "/rooms",
         group: "nav",
         icon: <Building2 className="h-4 w-4 text-primary" />,
@@ -164,7 +181,13 @@ export function CommandPalette({
       {
         id: "nav-att",
         title: t.nav.attendance,
-        subtitle: isVi ? "Điểm danh vào/ra nhanh" : "เช็กชื่อเข้า-ออกด่วน",
+        subtitle: pickLang(lang, {
+          th: "เช็กชื่อเข้า-ออกด่วน",
+          vi: "Điểm danh vào/ra nhanh",
+          en: "Quick check-in / check-out",
+          zh: "快速出入点名",
+          lo: "ເຊັກຊື່ເຂົ້າ-ອອກດ່ວນ",
+        }),
         href: "/attendance",
         group: "nav",
         icon: <ClipboardCheck className="h-4 w-4 text-emerald-600" />,
@@ -172,7 +195,13 @@ export function CommandPalette({
       {
         id: "nav-fees",
         title: t.nav.fees,
-        subtitle: isVi ? "Thu tiền phòng & hóa đơn" : "บิลค่าห้องและรับชำระเงิน",
+        subtitle: pickLang(lang, {
+          th: "บิลค่าห้องและรับชำระเงิน",
+          vi: "Thu tiền phòng & hóa đơn",
+          en: "Room billing & fee collection",
+          zh: "房费账单与缴费记录",
+          lo: "ບິນຄ່າຫ້ອງ ແລະ ຮັບຊຳລະເງິນ",
+        }),
         href: "/fees",
         group: "nav",
         icon: <CreditCard className="h-4 w-4 text-amber-600" />,
@@ -180,7 +209,13 @@ export function CommandPalette({
       {
         id: "nav-viol",
         title: t.nav.violations,
-        subtitle: isVi ? "Theo dõi vi phạm" : "บันทึกการกระทำผิดและบทลงโทษ",
+        subtitle: pickLang(lang, {
+          th: "บันทึกการกระทำผิดและบทลงโทษ",
+          vi: "Theo dõi vi phạm",
+          en: "Disciplinary records & penalties",
+          zh: "违规记录与处理",
+          lo: "ບັນທຶກການລະເມີດ ແລະ ບົດລົງໂທດ",
+        }),
         href: "/violations",
         group: "nav",
         icon: <ShieldAlert className="h-4 w-4 text-rose-600" />,
@@ -188,7 +223,13 @@ export function CommandPalette({
       {
         id: "nav-ann",
         title: t.nav.announcements,
-        subtitle: isVi ? "Thông báo ký túc xá" : "ประกาศข่าวสารหอพัก",
+        subtitle: pickLang(lang, {
+          th: "ประกาศข่าวสารหอพัก",
+          vi: "Thông báo ký túc xá",
+          en: "Dormitory notices & news",
+          zh: "宿舍通知与公告",
+          lo: "ປະກາດຂ່າວສານຫໍພັກ",
+        }),
         href: "/announcements",
         group: "nav",
         icon: <Megaphone className="h-4 w-4 text-indigo-600" />,
@@ -196,7 +237,13 @@ export function CommandPalette({
       {
         id: "nav-glassy",
         title: t.nav.glassyView,
-        subtitle: isVi ? "Bảng điều khiển Glassy UI" : "ศูนย์ควบคุมแบบ Glassy UI",
+        subtitle: pickLang(lang, {
+          th: "ศูนย์ควบคุมแบบ Glassy UI",
+          vi: "Bảng điều khiển Glassy UI",
+          en: "Glassy UI Control View",
+          zh: "Glassy 控制视图",
+          lo: "ສູນຄວບຄຸມແບບ Glassy UI",
+        }),
         href: "/glassy-demo",
         group: "nav",
         icon: <Sparkles className="h-4 w-4 text-violet-600" />,
@@ -222,7 +269,7 @@ export function CommandPalette({
           .map((m) => ({
             id: `mem-${m.id}`,
             title: m.full_name,
-            subtitle: `${m.student_code}${m.room_number ? ` · ${isVi ? "Phòng" : "ห้อง"} ${m.room_number}` : ""}`,
+            subtitle: `${m.student_code}${m.room_number ? ` · ${t.common.room} ${m.room_number}` : ""}`,
             href: `/members?q=${encodeURIComponent(m.student_code || m.full_name)}`,
             group: "member" as const,
             icon: <Users className="h-4 w-4 text-sky-600" />,
@@ -239,8 +286,8 @@ export function CommandPalette({
           .slice(0, 6)
           .map((r) => ({
             id: `room-${r.id}`,
-            title: `${isVi ? "Phòng" : "ห้อง"} ${r.room_number}`,
-            subtitle: `${r.building_code ? `${isVi ? "Tòa" : "อาคาร"} ${r.building_code} · ` : ""}${isVi ? "Tầng" : "ชั้น"} ${r.floor}`,
+            title: `${t.common.room} ${r.room_number}`,
+            subtitle: `${r.building_code ? `${t.common.building} ${r.building_code} · ` : ""}${t.rooms.floor} ${r.floor}`,
             href: `/rooms?building=${encodeURIComponent(r.building_code ?? "all")}`,
             group: "room" as const,
             icon: <Building2 className="h-4 w-4 text-emerald-600" />,
@@ -293,11 +340,13 @@ export function CommandPalette({
                 navigateTo(items[activeIndex].href);
               }
             }}
-            placeholder={
-              lang === "vi"
-                ? "Tìm nhanh tên sinh viên, số phòng hoặc menu..."
-                : "ค้นหาด่วน: ชื่อสมาชิก รหัส เลขห้อง หรือเมนู..."
-            }
+            placeholder={pickLang(lang, {
+              th: "ค้นหาด่วน: ชื่อสมาชิก รหัส เลขห้อง หรือเมนู...",
+              vi: "Tìm nhanh tên sinh viên, số phòng hoặc menu...",
+              en: "Quick search: student name, ID, room, or menu...",
+              zh: "快速搜索：学生姓名、学号、房号或菜单...",
+              lo: "ຄົ້ນຫາດ່ວນ: ຊື່ສະມາຊິກ ລະຫັດ ເລກຫ້ອງ ຫຼື ເມນູ...",
+            })}
             className="flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
           />
           <button
@@ -348,8 +397,34 @@ export function CommandPalette({
         </div>
 
         <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-4 py-2 text-[11px] text-slate-400">
-          <span>↑↓ {lang === "vi" ? "Chọn" : "เลือก"} · Enter {lang === "vi" ? "Mở" : "เปิด"}</span>
-          <span>Esc {lang === "vi" ? "Đóng" : "ปิด"}</span>
+          <span>
+            ↑↓{" "}
+            {pickLang(lang, {
+              th: "เลือก",
+              vi: "Chọn",
+              en: "Select",
+              zh: "选择",
+              lo: "ເລືອກ",
+            })}{" "}
+            · Enter{" "}
+            {pickLang(lang, {
+              th: "เปิด",
+              vi: "Mở",
+              en: "Open",
+              zh: "打开",
+              lo: "ເປີດ",
+            })}
+          </span>
+          <span>
+            Esc{" "}
+            {pickLang(lang, {
+              th: "ปิด",
+              vi: "Đóng",
+              en: "Close",
+              zh: "关闭",
+              lo: "ປິດ",
+            })}
+          </span>
         </div>
       </div>
     </div>,

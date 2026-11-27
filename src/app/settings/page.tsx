@@ -15,9 +15,10 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
-import { useI18n } from "@/lib/i18n";
+import { pickLang, useI18n } from "@/lib/i18n";
 import { formatCurrency } from "@/lib/utils";
 import { updateSelfProfile } from "@/services";
 import type { Language } from "@/types/database";
@@ -67,26 +68,12 @@ export default function SettingsPage() {
             <p className="text-xs text-slate-500 leading-relaxed">
               {t.settings.languageDesc}
             </p>
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant={lang === "th" ? "default" : "outline"}
-                disabled={updatingLang}
-                onClick={() => handleSelectLanguage("th")}
-                className="justify-center"
-              >
-                🇹🇭 ภาษาไทย (TH)
-              </Button>
-              <Button
-                type="button"
-                variant={lang === "vi" ? "default" : "outline"}
-                disabled={updatingLang}
-                onClick={() => handleSelectLanguage("vi")}
-                className="justify-center"
-              >
-                🇻🇳 Tiếng Việt (VI)
-              </Button>
-            </div>
+            <LanguageSwitcher
+              variant="pills"
+              disabled={updatingLang}
+              onSelect={handleSelectLanguage}
+              className="!justify-start"
+            />
             <div className="rounded-xl bg-slate-50 border border-slate-200/70 px-3.5 py-2.5 text-xs text-slate-600 flex items-center justify-between">
               <span>{t.common.currency}</span>
               <span className="font-bold text-slate-900 tabular-nums">
@@ -105,7 +92,13 @@ export default function SettingsPage() {
             <div className="space-y-2.5 text-xs">
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5">
                 <span className="text-slate-700">
-                  {lang === "vi" ? "Mở tìm kiếm nhanh" : "เปิดค้นหาด่วน (Command Palette)"}
+                  {pickLang(lang, {
+                    th: "เปิดค้นหาด่วน (Command Palette)",
+                    vi: "Mở tìm kiếm nhanh",
+                    en: "Open Quick Search (Command Palette)",
+                    zh: "打开快速搜索 (命令面板)",
+                    lo: "ເປີດຄົ້ນຫາດ່ວນ (Command Palette)",
+                  })}
                 </span>
                 <kbd className="rounded-md border border-slate-300 bg-white px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
                   Ctrl + K
@@ -113,7 +106,13 @@ export default function SettingsPage() {
               </div>
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5">
                 <span className="text-slate-700">
-                  {lang === "vi" ? "Tìm kiếm menu bên trái" : "โฟกัสช่องค้นหาเมนูด้านข้าง"}
+                  {pickLang(lang, {
+                    th: "โฟกัสช่องค้นหาเมนูด้านข้าง",
+                    vi: "Tìm kiếm menu bên trái",
+                    en: "Focus sidebar navigation filter",
+                    zh: "聚焦左侧菜单搜索",
+                    lo: "ໂຟກັສຊ່ອງຄົ້ນຫາເມນູດ້ານຂ້າງ",
+                  })}
                 </span>
                 <kbd className="rounded-md border border-slate-300 bg-white px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
                   /

@@ -16,7 +16,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
-import { useI18n } from "@/lib/i18n";
+import { LANGUAGE_OPTIONS, pickLang, useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { emitDormSync, subscribeDormSync } from "@/lib/cache";
 import { listProfiles } from "@/services";
@@ -214,7 +214,13 @@ export default function UsersPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatCard
-                label={lang === "vi" ? "Tổng tài khoản" : "บัญชีทั้งหมด"}
+                label={pickLang(lang, {
+                  th: "บัญชีทั้งหมด",
+                  vi: "Tổng tài khoản",
+                  en: "Total Accounts",
+                  zh: "账号总数",
+                  lo: "ບັນຊີທັງໝົດ",
+                })}
                 value={userStats.total}
                 icon={<Users className="h-4 w-4" />}
               />
@@ -424,8 +430,11 @@ export default function UsersPage() {
                 onChange={(e) => setPrefLang(e.target.value as Language)}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
               >
-                <option value="th">🇹🇭 ไทย</option>
-                <option value="vi">🇻🇳 Tiếng Việt</option>
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <option key={opt.code} value={opt.code}>
+                    {opt.flag} {opt.nativeName} ({opt.shortLabel})
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -456,9 +465,13 @@ export default function UsersPage() {
         loading={deleting}
         description={
           deletingUser
-            ? lang === "vi"
-              ? `Xác nhận xóa tài khoản "${deletingUser.full_name}" (${deletingUser.email})? Thao tác này không thể hoàn tác.`
-              : `ยืนยันการลบบัญชี "${deletingUser.full_name}" (${deletingUser.email})? การดำเนินการนี้ไม่สามารถย้อนกลับได้`
+            ? pickLang(lang, {
+                th: `ยืนยันการลบบัญชี "${deletingUser.full_name}" (${deletingUser.email})? การดำเนินการนี้ไม่สามารถย้อนกลับได้`,
+                vi: `Xác nhận xóa tài khoản "${deletingUser.full_name}" (${deletingUser.email})? Thao tác này không thể hoàn tác.`,
+                en: `Delete account "${deletingUser.full_name}" (${deletingUser.email})? This action cannot be undone.`,
+                zh: `确认删除账号 "${deletingUser.full_name}" (${deletingUser.email})？此操作无法撤销。`,
+                lo: `ຢືນຢັນການລຶບບັນຊີ "${deletingUser.full_name}" (${deletingUser.email})? ການດຳເນີນການນີ້ບໍ່ສາມາດຍ້ອນກັບໄດ້`,
+              })
             : undefined
         }
       />

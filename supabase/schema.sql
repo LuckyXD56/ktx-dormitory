@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   role text NOT NULL DEFAULT 'staff' CHECK (role IN ('super_admin', 'admin', 'staff')),
   phone text DEFAULT '',
   avatar_url text,
-  preferred_language text NOT NULL DEFAULT 'th' CHECK (preferred_language IN ('th', 'vi')),
+  preferred_language text NOT NULL DEFAULT 'th' CHECK (preferred_language IN ('th', 'vi', 'en', 'zh', 'lo')),
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -207,7 +207,7 @@ BEGIN
     COALESCE(NEW.email, ''),
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(COALESCE(NEW.email, 'User'), '@', 1)),
     assigned_role,
-    CASE WHEN NEW.raw_user_meta_data->>'preferred_language' IN ('th', 'vi')
+    CASE WHEN NEW.raw_user_meta_data->>'preferred_language' IN ('th', 'vi', 'en', 'zh', 'lo')
          THEN NEW.raw_user_meta_data->>'preferred_language'
          ELSE 'th' END
   )
